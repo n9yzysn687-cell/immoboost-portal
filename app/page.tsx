@@ -2,90 +2,186 @@
 
 import { useMemo, useState } from "react";
 
-const COPILOT_URL = "https://chatgpt.com/g/g-6a5540cd8d24819190e9a0d0ff3dabf2-immoboost-copilottm";
+type View = "home" | "seller" | "detail";
+type Detail = "checklist" | "questions" | "documents" | "attention";
 
-const missions = [
-  "Construire son pipeline vendeur",
-  "Transformer un contact en rendez-vous",
-  "Préparer un rendez-vous vendeur",
-  "Réaliser une estimation professionnelle",
-  "Obtenir le mandat",
-  "Préparer la mise en vente",
-  "Commercialiser le bien",
-  "Gérer les acheteurs et les visites",
-  "Négocier une offre",
-  "Sécuriser la vente",
-  "Transformer le client en ambassadeur",
-  "Développer son activité",
+const situations = [
+  ["🤝", "Rendez-vous vendeur", "Questions, documents et points d’attention", "2 min"],
+  ["🏡", "Estimation", "Structurez votre analyse avant le rendez-vous", "3 min"],
+  ["📢", "Mise en vente", "Annonce, plan photo et diffusion", "2 min"],
+  ["💬", "Réponse client", "Email, WhatsApp ou SMS prêt à adapter", "30 sec"],
+  ["📄", "Trouver un modèle", "Retrouvez immédiatement le bon support", "15 sec"],
+  ["⚖️", "Question métier", "Une orientation claire avec niveau de vigilance", "1 min"],
 ];
 
-export default function Home() {
-  const [active, setActive] = useState("dashboard");
-  const [done, setDone] = useState<number[]>([]);
-  const completion = useMemo(() => Math.round((done.length / missions.length) * 100), [done]);
+const content: Record<Detail, { title: string; intro: string; items: string[]; trust: string }> = {
+  checklist: {
+    title: "Avant de partir",
+    intro: "L’essentiel pour arriver préparé, sans stocker de données client.",
+    items: [
+      "Vérifier le PEB et les informations publiques disponibles",
+      "Préparer quelques comparables récents à contrôler",
+      "Clarifier vos honoraires et votre méthode de travail",
+      "Prévoir les documents de présentation utiles",
+      "Préparer les questions sur le projet et le calendrier",
+      "Vérifier l’adresse, le trajet et l’heure du rendez-vous",
+    ],
+    trust: "Prêt à utiliser",
+  },
+  questions: {
+    title: "Questions essentielles",
+    intro: "Des questions courtes pour comprendre le projet avant de proposer une solution.",
+    items: [
+      "Pourquoi envisagez-vous de vendre aujourd’hui ?",
+      "Quel serait votre calendrier idéal ?",
+      "Qu’est-ce qui compte le plus pour vous dans cet accompagnement ?",
+      "Avez-vous déjà reçu une estimation ou rencontré une agence ?",
+      "Quels travaux ou améliorations ont été réalisés ?",
+      "Existe-t-il un point particulier que je dois connaître avant l’analyse ?",
+    ],
+    trust: "À personnaliser",
+  },
+  documents: {
+    title: "Documents utiles",
+    intro: "Uniquement les catégories à prévoir. Les documents sensibles restent dans vos outils habituels.",
+    items: [
+      "Présentation de votre méthode d’accompagnement",
+      "Explication claire des honoraires",
+      "Liste indicative des documents nécessaires à la vente",
+      "Support de prise de notes anonymisé",
+      "Modèle de suivi après rendez-vous",
+    ],
+    trust: "À personnaliser",
+  },
+  attention: {
+    title: "Points d’attention",
+    intro: "Les sujets qui demandent souvent une explication claire ou une vérification externe.",
+    items: [
+      "Ne pas présenter une estimation comme une garantie de prix",
+      "Distinguer faits vérifiés, hypothèses et recommandations",
+      "Éviter d’introduire des noms, emails ou numéros personnels inutiles",
+      "Faire vérifier les questions juridiques, fiscales ou urbanistiques sensibles",
+      "Ne pas promettre un délai de vente sans contexte de marché suffisant",
+    ],
+    trust: "À vérifier selon le dossier",
+  },
+};
 
-  const toggleMission = (index: number) => {
-    setDone((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);
-  };
+export default function Home() {
+  const [view, setView] = useState<View>("home");
+  const [detail, setDetail] = useState<Detail>("checklist");
+  const [checked, setChecked] = useState<number[]>([]);
+
+  const progress = useMemo(() => Math.round((checked.length / content.checklist.items.length) * 100), [checked]);
+
+  function openDetail(next: Detail) {
+    setDetail(next);
+    setView("detail");
+  }
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand"><span>IB</span><div><strong>ImmoBoost™</strong><small>Workspace immobilier</small></div></div>
-        {[
-          ["dashboard", "Aujourd’hui"],
-          ["missions", "Missions"],
-          ["copilot", "Copilot"],
-          ["resources", "Ressources"],
-        ].map(([id, label]) => (
-          <button key={id} className={active === id ? "nav active" : "nav"} onClick={() => setActive(id)}>{label}</button>
-        ))}
-      </aside>
+    <main className="app">
+      <header className="topbar">
+        <button className="logo" onClick={() => setView("home")} aria-label="Accueil ImmoBoost">IB</button>
+        <div className="brand"><strong>ImmoBoost™</strong><span>Préparer. Utiliser. Avancer.</span></div>
+        <div className="privacy">● Mode confidentiel</div>
+      </header>
 
-      <main>
-        {active === "dashboard" && (
-          <>
-            <section className="hero">
-              <span className="eyebrow">IMMOBOOST WORKSPACE</span>
-              <h1>Qu’est-ce qu’on traite en priorité ?</h1>
-              <p>Un espace simple pour structurer les dossiers, accélérer les décisions et ouvrir le bon outil au bon moment.</p>
-              <div className="actions">
-                <a className="primary" href={COPILOT_URL} target="_blank" rel="noreferrer">Ouvrir le Copilot</a>
-                <button className="secondary" onClick={() => setActive("missions")}>Voir les Missions</button>
-              </div>
-            </section>
-            <section className="grid">
-              <article className="card"><small>Missions</small><strong>12</strong></article>
-              <article className="card"><small>Progression</small><strong>{completion}%</strong></article>
-              <article className="card"><small>Copilot</small><strong className="online">Actif</strong></article>
-              <article className="card wide"><h2>Raccourcis</h2><p>Préparer un appel, écrire un message, créer une annonce ou traiter une objection.</p><a className="primary" href={COPILOT_URL} target="_blank" rel="noreferrer">Lancer une action</a></article>
-            </section>
-          </>
-        )}
+      {view === "home" && (
+        <section className="screen">
+          <div className="intro">
+            <span className="kicker">VOTRE ESPACE DE PRÉPARATION</span>
+            <h1>Bonjour.<br />Quelle est votre situation ?</h1>
+            <p>Choisissez un moment du métier. ImmoBoost présente directement une préparation utile, sans vous demander de construire un prompt.</p>
+          </div>
 
-        {active === "missions" && (
-          <section>
-            <div className="heading"><div><span className="eyebrow dark">PARCOURS MÉTIER</span><h1>Les 12 Missions</h1></div><strong>{completion}% terminé</strong></div>
-            <div className="missionGrid">
-              {missions.map((mission, index) => (
-                <article className="mission" key={mission}>
-                  <small>MISSION {String(index + 1).padStart(2, "0")}</small>
-                  <h2>{mission}</h2>
-                  <button onClick={() => toggleMission(index)}>{done.includes(index) ? "Terminée ✓" : "Marquer terminée"}</button>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
+          <div className="situationGrid">
+            {situations.map(([icon, title, description, time], index) => (
+              <button
+                className={`situationCard ${index === 0 ? "featured" : ""}`}
+                key={title}
+                onClick={() => index === 0 ? setView("seller") : undefined}
+                aria-disabled={index !== 0}
+              >
+                <span className="icon">{icon}</span>
+                <span className="cardText"><strong>{title}</strong><small>{description}</small></span>
+                <span className="time">{time}</span>
+                {index !== 0 && <span className="soon">Bientôt</span>}
+              </button>
+            ))}
+          </div>
 
-        {active === "copilot" && (
-          <section className="card focus"><span className="eyebrow dark">COPILOT OFFICIEL</span><h1>Travaille dans une conversation par dossier.</h1><p>Utilise un fil distinct pour chaque vendeur, acheteur ou bien afin de conserver un contexte propre.</p><a className="primary" href={COPILOT_URL} target="_blank" rel="noreferrer">Ouvrir ImmoBoost Copilot</a></section>
-        )}
+          <div className="resumeCard">
+            <div><span className="label">PREMIÈRE PRÉPARATION DISPONIBLE</span><strong>Rendez-vous vendeur</strong><small>Une solution prête avant même d’ajouter du contexte.</small></div>
+            <button className="primary" onClick={() => setView("seller")}>Préparer maintenant</button>
+          </div>
+        </section>
+      )}
 
-        {active === "resources" && (
-          <section className="card focus"><span className="eyebrow dark">RESSOURCES</span><h1>La bibliothèque client arrive ici.</h1><p>Guides, checklists, scripts, modèles et mises à jour seront ajoutés au fil des prochains sprints.</p></section>
-        )}
-      </main>
-    </div>
+      {view === "seller" && (
+        <section className="screen preparation">
+          <button className="back" onClick={() => setView("home")}>← Retour</button>
+          <div className="preparationHero">
+            <span className="kicker">RENDEZ-VOUS VENDEUR · ENVIRON 2 MINUTES</span>
+            <h1>Votre préparation est déjà structurée.</h1>
+            <p>Commencez par l’essentiel. Vous pourrez personnaliser uniquement ce qui en a besoin.</p>
+            <div className="statusRow"><span className="ready">● Prêt à utiliser</span><span>Sans donnée personnelle obligatoire</span></div>
+          </div>
+
+          <div className="solutionGrid">
+            <button className="solutionCard" onClick={() => openDetail("checklist")}><span>📋</span><strong>Ce qu’il faut préparer</strong><small>6 points essentiels</small><b>Ouvrir →</b></button>
+            <button className="solutionCard" onClick={() => openDetail("questions")}><span>💬</span><strong>Questions importantes</strong><small>6 questions prêtes</small><b>Ouvrir →</b></button>
+            <button className="solutionCard" onClick={() => openDetail("documents")}><span>📄</span><strong>Documents utiles</strong><small>5 catégories</small><b>Ouvrir →</b></button>
+            <button className="solutionCard warning" onClick={() => openDetail("attention")}><span>⚠️</span><strong>Points d’attention</strong><small>5 vérifications</small><b>Ouvrir →</b></button>
+          </div>
+
+          <div className="nextCard">
+            <div><span className="label">ET MAINTENANT ?</span><strong>Commencez par la préparation express.</strong><small>Les six points indispensables, lisibles en moins d’une minute.</small></div>
+            <button className="primary" onClick={() => openDetail("checklist")}>Voir l’essentiel</button>
+          </div>
+        </section>
+      )}
+
+      {view === "detail" && (
+        <section className="screen detailScreen">
+          <button className="back" onClick={() => setView("seller")}>← Rendez-vous vendeur</button>
+          <div className="detailHeader">
+            <span className="trust">{content[detail].trust}</span>
+            <h1>{content[detail].title}</h1>
+            <p>{content[detail].intro}</p>
+          </div>
+
+          <div className="itemList">
+            {content[detail].items.map((item, index) => {
+              const isChecklist = detail === "checklist";
+              const isChecked = checked.includes(index);
+              return (
+                <button
+                  key={item}
+                  className={`item ${isChecked ? "checked" : ""}`}
+                  onClick={() => isChecklist && setChecked(current => current.includes(index) ? current.filter(value => value !== index) : [...current, index])}
+                >
+                  <span className="number">{isChecklist ? (isChecked ? "✓" : "○") : String(index + 1).padStart(2, "0")}</span>
+                  <strong>{item}</strong>
+                </button>
+              );
+            })}
+          </div>
+
+          {detail === "checklist" && <div className="progress"><div style={{ width: `${progress}%` }} /><span>{progress}% prêt</span></div>}
+
+          <div className="privacyNote"><strong>Confidentialité par défaut</strong><span>Utilisez des descriptions génériques. Ne saisissez pas de numéro national, document d’identité, donnée bancaire ou information personnelle non indispensable.</span></div>
+
+          <button className="primary full" onClick={() => setView("seller")}>Continuer la préparation</button>
+        </section>
+      )}
+
+      <nav className="mobileNav">
+        <button className={view === "home" ? "active" : ""} onClick={() => setView("home")}>⌂<small>Accueil</small></button>
+        <button className={view !== "home" ? "active" : ""} onClick={() => setView("seller")}>◫<small>Préparation</small></button>
+        <button disabled>⌕<small>Trouver</small></button>
+        <button disabled>◉<small>Profil</small></button>
+      </nav>
+    </main>
   );
 }
