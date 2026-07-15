@@ -24,13 +24,11 @@ button { cursor: pointer; }
 .brand strong { font-size: 17px; }
 .brand span { color: var(--muted); font-size: 12px; }
 .privacy { margin-left: auto; padding: 9px 12px; border: 1px solid #cce5da; border-radius: 999px; background: #edf8f3; color: #126a49; font-size: 12px; font-weight: 800; }
-
 .screen { max-width: 1180px; margin: auto; padding: 42px 22px 70px; }
 .intro { max-width: 790px; }
 .kicker, .label { color: #8c6417; font-size: 11px; font-weight: 900; letter-spacing: 1.2px; }
 h1 { margin: 10px 0 16px; color: var(--navy); font-size: clamp(42px, 7vw, 76px); line-height: .98; letter-spacing: -3px; }
 .intro p, .preparationHero p, .detailHeader p { max-width: 720px; margin: 0; color: var(--muted); font-size: 17px; line-height: 1.65; }
-
 .situationGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 34px; }
 .situationCard { position: relative; min-height: 138px; padding: 21px; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; border: 1px solid var(--line); border-radius: 22px; background: var(--paper); color: var(--ink); text-align: left; box-shadow: 0 12px 30px rgba(7,23,45,.055); transition: 180ms ease; }
 .situationCard.featured:hover { transform: translateY(-3px); border-color: #cbb477; }
@@ -38,16 +36,16 @@ h1 { margin: 10px 0 16px; color: var(--navy); font-size: clamp(42px, 7vw, 76px);
 .icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: #f1e8d3; font-size: 21px; }
 .cardText { display: grid; gap: 6px; }
 .cardText strong { color: var(--navy); font-size: 19px; }
-.cardText small, .solutionCard small, .resumeCard small, .nextCard small { color: var(--muted); line-height: 1.45; }
+.cardText small, .solutionCard small, .resumeCard small, .nextCard small, .coachCard small { color: var(--muted); line-height: 1.45; }
 .time { color: var(--muted); font-size: 12px; font-weight: 800; }
 .soon { position: absolute; right: 18px; bottom: 16px; color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .8px; }
-
-.resumeCard, .nextCard { margin-top: 18px; padding: 22px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-radius: 22px; background: linear-gradient(135deg, var(--navy), var(--navy-soft)); color: white; }
-.resumeCard > div, .nextCard > div { display: grid; gap: 5px; }
-.resumeCard strong, .nextCard strong { font-size: 21px; }
+.resumeCard, .nextCard, .coachCard { margin-top: 18px; padding: 22px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-radius: 22px; }
+.resumeCard, .nextCard { background: linear-gradient(135deg, var(--navy), var(--navy-soft)); color: white; }
+.coachCard { border: 1px solid #d9cfb6; background: #fffaf0; }
+.resumeCard > div, .nextCard > div, .coachCard > div { display: grid; gap: 5px; }
+.resumeCard strong, .nextCard strong, .coachCard strong { font-size: 21px; }
 .resumeCard small, .nextCard small { color: #cfd9e6; }
 .primary { padding: 13px 18px; border: 0; border-radius: 13px; background: var(--gold); color: var(--navy); font-weight: 900; white-space: nowrap; }
-
 .back { margin-bottom: 25px; padding: 0; border: 0; background: transparent; color: var(--muted); font-weight: 800; }
 .preparationHero { padding: 32px; border: 1px solid var(--line); border-radius: 28px; background: white; box-shadow: 0 14px 40px rgba(7,23,45,.06); }
 .preparationHero h1 { max-width: 800px; font-size: clamp(38px, 6vw, 68px); }
@@ -60,8 +58,7 @@ h1 { margin: 10px 0 16px; color: var(--navy); font-size: clamp(42px, 7vw, 76px);
 .solutionCard strong { color: var(--navy); font-size: 20px; }
 .solutionCard b { margin-top: 16px; color: var(--navy); font-size: 13px; }
 .solutionCard.warning { border-color: #ead7b8; background: #fffaf1; }
-
-.detailScreen { max-width: 840px; }
+.detailScreen, .coachScreen { max-width: 840px; }
 .detailHeader .trust { display: inline-block; padding: 8px 11px; border-radius: 999px; background: #edf8f3; color: var(--green); font-size: 12px; font-weight: 900; }
 .detailHeader h1 { font-size: clamp(40px, 7vw, 70px); }
 .itemList { display: grid; gap: 10px; margin-top: 28px; }
@@ -76,7 +73,15 @@ h1 { margin: 10px 0 16px; color: var(--navy); font-size: clamp(42px, 7vw, 76px);
 .privacyNote { margin: 20px 0; padding: 17px; display: grid; gap: 5px; border: 1px solid #dce2ea; border-radius: 17px; background: #f7f9fb; }
 .privacyNote span { color: var(--muted); font-size: 13px; line-height: 1.55; }
 .full { width: 100%; }
-
+.coachSuggestions { display: grid; gap: 10px; margin-top: 28px; }
+.coachSuggestion { padding: 17px; display: flex; justify-content: space-between; gap: 14px; border: 1px solid var(--line); border-radius: 17px; background: white; color: var(--ink); text-align: left; }
+.coachSuggestion span { color: var(--muted); font-size: 12px; font-weight: 800; }
+.coachSuggestion.selected { border-color: #cbb477; background: #fffaf0; }
+.coachAnswer { margin-top: 18px; padding: 25px; border-radius: 22px; background: var(--navy); color: white; }
+.coachAnswer h2 { margin: 8px 0 12px; font-size: 28px; }
+.coachAnswer p { margin: 0; color: #d6e0eb; line-height: 1.7; }
+.confidence { margin-top: 20px; padding-top: 18px; display: grid; gap: 5px; border-top: 1px solid rgba(255,255,255,.14); }
+.confidence span { color: #b8c5d4; font-size: 13px; line-height: 1.5; }
 .mobileNav { position: fixed; z-index: 20; left: 12px; right: 12px; bottom: 10px; max-width: 520px; margin: auto; padding: 7px; display: flex; justify-content: space-around; border-radius: 19px; background: rgba(7,23,45,.97); box-shadow: 0 18px 50px rgba(7,23,45,.28); }
 .mobileNav button { min-width: 62px; padding: 8px; display: grid; gap: 3px; border: 0; border-radius: 12px; background: transparent; color: #aeb9c7; }
 .mobileNav button.active { background: rgba(255,255,255,.11); color: white; }
@@ -92,8 +97,9 @@ h1 { margin: 10px 0 16px; color: var(--navy); font-size: clamp(42px, 7vw, 76px);
   .intro p, .preparationHero p, .detailHeader p { font-size: 15px; }
   .situationGrid, .solutionGrid { grid-template-columns: 1fr; }
   .situationCard { min-height: 120px; }
-  .resumeCard, .nextCard { align-items: stretch; flex-direction: column; }
+  .resumeCard, .nextCard, .coachCard { align-items: stretch; flex-direction: column; }
   .primary { width: 100%; }
   .preparationHero { padding: 24px 20px; }
   .preparationHero h1 { font-size: 43px; }
+  .coachSuggestion { flex-direction: column; }
 }
