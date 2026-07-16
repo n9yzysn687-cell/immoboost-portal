@@ -1,157 +1,147 @@
 "use client";
 
-import { useState } from "react";
-import { dailyActions, type DailyAction } from "../lib/daily-actions";
+import { useMemo, useState } from "react";
+import { buildExpertPrompt, workflows, type Workflow } from "../lib/workflows";
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
-type Source = { title: string; url: string };
-type Agent = { id: string; name: string; icon: string; official: boolean };
+type Provider = { id: string; name: string; icon: string; url: string; note: string };
 
-const starters = [
-  "Rédige un email après une visite sans retour",
-  "Crée une annonce pour un appartement lumineux à Bruxelles",
-  "Mon vendeur trouve mes honoraires trop élevés",
-  "Vérifie si le PEB doit apparaître dans une annonce en Wallonie",
+const providers: Provider[] = [
+  { id: "chatgpt", name: "ChatGPT", icon: "◉", url: "https://chatgpt.com/", note: "Le plus simple pour démarrer" },
+  { id: "gemini", name: "Gemini", icon: "✦", url: "https://gemini.google.com/app", note: "Alternative Google" },
+  { id: "claude", name: "Claude", icon: "◇", url: "https://claude.ai/new", note: "Très bon pour la rédaction" },
 ];
 
 export default function Home() {
-  const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [sources, setSources] = useState<Source[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [active, setActive] = useState<Workflow | null>(null);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [generated, setGenerated] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  async function ask(value = question) {
-    const clean = value.trim();
-    if (!clean || loading) return;
+  const prompt = useMemo(() => active ? buildExpertPrompt(active, values) : "", [active, values]);
+  const missingRequired = active?.fields.some((field) => field.required && !values[field.id]?.trim()) ?? true;
 
-    const previous = messages;
-    setMessages([...previous, { role: "user", content: clean }]);
-    setQuestion("");
-    setError("");
-    setSources([]);
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: clean, history: previous }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Impossible d'obtenir une réponse.");
-
-      setAgent(data.agent);
-      setSources(data.sources ?? []);
-      setMessages((current) => [...current, { role: "assistant", content: data.answer }]);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Une erreur est survenue.");
-    } finally {
-      setLoading(false);
-    }
+  function openWorkflow(workflow: Workflow) {
+    setActive(workflow);
+    setValues({});
+    setGenerated(false);
+    setCopied(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function startAction(action: DailyAction) {
-    setQuestion(action.prompt);
-    window.setTimeout(() => document.getElementById("main-question")?.focus(), 0);
-  }
-
-  async function copyAnswer() {
-    const answer = [...messages].reverse().find((message) => message.role === "assistant")?.content;
-    if (!answer) return;
-    await navigator.clipboard.writeText(answer);
+  async function copyPrompt() {
+    if (!prompt) return;
+    await navigator.clipboard.writeText(prompt);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
+    window.setTimeout(() => setCopied(false), 1400);
   }
 
-  function resetChat() {
-    setQuestion("");
-    setMessages([]);
-    setAgent(null);
-    setSources([]);
-    setError("");
+  async function launch(provider: Provider) {
+    await copyPrompt();
+    window.open(provider.url, "_blank", "noopener,noreferrer");
   }
 
-  const hasConversation = messages.length > 0;
+  function reset() {
+    setActive(null);
+    setValues({});
+    setGenerated(false);
+    setCopied(false);
+  }
 
   return (
     <main className="appShell">
       <header className="topbar">
-        <button className="logo" onClick={resetChat}>IB</button>
-        <div className="brand"><strong>ImmoBoost™ Belgique</strong><span>Votre équipe IA immobilière.</span></div>
+        <button className="logo" onClick={reset}>IB</button>
+        <div className="brand"><strong>ImmoBoost™ Belgique</strong><span>Le senior qui prépare votre IA.</span></div>
         <span className="market">🇧🇪 Belgique · FR</span>
       </header>
 
-      <section className={`hero ${hasConversation ? "compactHero" : ""}`}>
-        <span className="eyebrow">UNE QUESTION, LE BON AGENT</span>
-        <h1>{hasConversation ? "Continuez la conversation." : "Qu’est-ce que vous devez faire maintenant ?"}</h1>
-        {!hasConversation && <p>Écrivez comme vous parleriez à un collègue. ImmoBoost choisit automatiquement le bon spécialiste et produit une réponse exploitable.</p>}
+      {!active && (
+        <>
+          <section className="hero landingHero">
+            <span className="eyebrow">AUCUN COÛT API POUR IMMOBOOST</span>
+            <h1>Que voulez-vous accomplir aujourd’hui&nbsp;?</h1>
+            <p>Choisissez une mission. ImmoBoost pose les bonnes questions, construit le meilleur brief, puis vous dirige vers l’IA que vous utilisez déjà.</p>
+          </section>
 
-        {hasConversation && (
-          <div className="chatThread" aria-live="polite">
-            {messages.map((message, index) => (
-              <div className={`chatMessage ${message.role}`} key={`${message.role}-${index}`}>
-                <small>{message.role === "user" ? "VOUS" : agent ? `${agent.icon} ${agent.name.toUpperCase()}` : "IMMOBOOST"}</small>
-                <p>{message.content}</p>
+          <section className="workspace">
+            <div className="workflowGrid">
+              {workflows.map((workflow) => (
+                <button className="workflowCard" key={workflow.id} onClick={() => openWorkflow(workflow)}>
+                  <span className="workflowIcon">{workflow.icon}</span>
+                  <div><strong>{workflow.title}</strong><small>{workflow.promise}</small></div>
+                  <b>Commencer →</b>
+                </button>
+              ))}
+            </div>
+            <div className="howItWorks">
+              <span>1</span><div><strong>Vous répondez à quelques questions</strong><small>Seulement les informations utiles à la mission.</small></div>
+              <span>2</span><div><strong>ImmoBoost construit le brief expert</strong><small>Le prompt complet reste prêt à copier.</small></div>
+              <span>3</span><div><strong>Vous ouvrez votre IA</strong><small>ChatGPT, Gemini ou Claude. Le calcul est pris en charge par leur plateforme.</small></div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {active && (
+        <section className="workflowScreen">
+          <button className="backLink" onClick={reset}>← Toutes les missions</button>
+          <div className="workflowHero">
+            <span className="workflowHeroIcon">{active.icon}</span>
+            <div><small>MISSION GUIDÉE</small><h1>{active.title}</h1><p>{active.promise}</p></div>
+          </div>
+
+          {!generated && (
+            <div className="builderLayout">
+              <div className="formCard">
+                <div className="stepHeader"><span>01</span><div><strong>Donnez le contexte</strong><small>ImmoBoost transforme vos réponses en brief professionnel.</small></div></div>
+                <div className="fieldGrid">
+                  {active.fields.map((field) => (
+                    <label key={field.id}>
+                      <span>{field.label}{field.required ? " *" : ""}</span>
+                      {field.type === "textarea" && <textarea value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} />}
+                      {field.type === "text" && <input value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} />}
+                      {field.type === "select" && <select value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })}><option value="">Choisir…</option>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select>}
+                    </label>
+                  ))}
+                </div>
+                <button className="primaryCta" disabled={missingRequired} onClick={() => setGenerated(true)}>Préparer mon expert IA →</button>
               </div>
-            ))}
-            {loading && <div className="chatMessage assistant loadingBubble"><small>IMMOBOOST</small><p>Le bon agent prépare votre réponse…</p></div>}
-          </div>
-        )}
 
-        {agent && <div className={`activeAgent ${agent.official ? "official" : ""}`}><span>{agent.icon}</span><div><small>AGENT ACTIF</small><strong>{agent.name}</strong><p>{agent.official ? "Recherche officielle belge activée pour cette question." : "Réponse métier spécialisée et orientée action."}</p></div></div>}
+              <aside className="outputPreview">
+                <small>LE RÉSULTAT DEMANDÉ À L’IA</small>
+                {active.output.map((item) => <div key={item}><span>✓</span><strong>{item}</strong></div>)}
+              </aside>
+            </div>
+          )}
 
-        <div className="askBox">
-          <textarea
-            id="main-question"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                ask();
-              }
-            }}
-            placeholder="Ex. Rédige un email pour relancer un vendeur après l’estimation…"
-          />
-          <button disabled={!question.trim() || loading} onClick={() => ask()}>{loading ? "En cours…" : "Envoyer →"}</button>
-        </div>
+          {generated && (
+            <div className="resultLayout">
+              <div className="promptCard">
+                <div className="stepHeader"><span>02</span><div><strong>Votre brief expert est prêt</strong><small>Copiez-le ou ouvrez directement l’IA de votre choix.</small></div></div>
+                <div className="promptPreview">{prompt}</div>
+                <div className="promptActions">
+                  <button onClick={copyPrompt}>{copied ? "Copié ✓" : "Copier le brief"}</button>
+                  <button className="secondary" onClick={() => setGenerated(false)}>Modifier</button>
+                </div>
+              </div>
 
-        {!hasConversation && <div className="starterRow">{starters.map((starter) => <button key={starter} onClick={() => ask(starter)}>{starter}</button>)}</div>}
-
-        {error && <div className="apiError"><strong>Action nécessaire</strong><p>{error}</p></div>}
-
-        {messages.some((message) => message.role === "assistant") && (
-          <div className="answerToolbar">
-            <button onClick={copyAnswer}>{copied ? "Copié ✓" : "Copier la dernière réponse"}</button>
-            <button className="secondary" onClick={resetChat}>Nouvelle conversation</button>
-          </div>
-        )}
-
-        {sources.length > 0 && (
-          <div className="sourcePanel">
-            <strong>Sources consultées</strong>
-            {sources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>)}
-          </div>
-        )}
-      </section>
-
-      {!hasConversation && (
-        <section className="workspace">
-          <div className="sectionTitle"><span>AU QUOTIDIEN</span><h2>Que voulez-vous produire ?</h2><p>Chaque bouton prépare une demande concrète. Vous pouvez la modifier avant de l’envoyer.</p></div>
-          <div className="actionGrid">
-            {dailyActions.map((action) => (
-              <button className="actionCard" key={action.id} onClick={() => startAction(action)}>
-                <span className="actionIcon">{action.icon}</span><div><strong>{action.title}</strong><small>{action.description}</small></div><b>→</b>
-              </button>
-            ))}
-          </div>
+              <aside className="providerPanel">
+                <small>03 · OUVRIR UNE IA</small>
+                <h2>Choisissez votre moteur</h2>
+                <p>Le brief est copié automatiquement. Collez-le dans la conversation qui s’ouvre.</p>
+                {providers.map((provider) => (
+                  <button key={provider.id} onClick={() => launch(provider)}>
+                    <span>{provider.icon}</span><div><strong>{provider.name}</strong><small>{provider.note}</small></div><b>Ouvrir ↗</b>
+                  </button>
+                ))}
+                <div className="zeroCost"><strong>Coût IA pour ImmoBoost : 0 €</strong><span>L’utilisateur emploie son propre accès à la plateforme choisie.</span></div>
+              </aside>
+            </div>
+          )}
         </section>
       )}
 
-      <footer className="footerNote"><strong>ImmoBoost ne mélange pas les pays.</strong><span>Cette version charge uniquement les agents, contenus et sources de la Belgique.</span></footer>
+      <footer className="footerNote"><strong>ImmoBoost Belgique uniquement.</strong><span>Les workflows, formulations et garde-fous sont conçus pour le marché belge. Les données personnelles sensibles ne doivent pas être saisies.</span></footer>
     </main>
   );
 }
