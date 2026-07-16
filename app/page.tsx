@@ -1,157 +1,377 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { buildExpertPrompt, searchWorkflows, workflows, type Workflow } from "../lib/workflows";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 
-type Provider = { name: string; icon: string; url: string };
-type Screen = "home" | "diagnosis" | "workflow" | "dossiers";
-type Dossier = { id: string; name: string; location: string; stage: string };
+type MarketingPack = {
+  enabled: boolean;
+  angle: string;
+  listing: { headline: string; body: string };
+  social: { instagram: string; facebook: string; linkedin: string };
+  advertising: { headline: string; primaryText: string; cta: string; audience: string };
+  reel: { hook: string; shotList: string[]; voiceover: string; caption: string };
+  visual: { canvaBrief: string; imagePrompt: string };
+  aiPrompts: { chatgpt: string; imageGenerator: string };
+  hashtags: string[];
+};
 
-const providers: Provider[] = [
-  { name: "ChatGPT", icon: "◉", url: "https://chatgpt.com/" },
-  { name: "Gemini", icon: "✦", url: "https://gemini.google.com/app" },
-  { name: "Claude", icon: "◇", url: "https://claude.ai/new" },
-];
+type Kit = {
+  title: string;
+  diagnostic: string;
+  objective: string;
+  urgency: "maintenant" | "aujourd'hui" | "cette semaine";
+  plan: Array<{ title: string; detail: string }>;
+  email: { subject: string; body: string };
+  sms: string;
+  callScript: { opening: string; questions: string[]; objections: string[]; closing: string };
+  checklist: string[];
+  documents: string[];
+  marketingPack: MarketingPack;
+  nextAction: { title: string; detail: string; when: string };
+  warning: string;
+  sources: Array<{ title: string; url: string }>;
+};
 
-const quickStarts = [
-  "Mon vendeur refuse l’exclusivité",
-  "Je dois créer une annonce",
+type Screen = "home" | "loading" | "kit";
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<{ 0: { transcript: string } }>;
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  }
+}
+
+const suggestions = [
+  "Mon vendeur refuse de baisser son prix",
   "J’ai une visite dans une heure",
-  "Mon acheteur fait une offre trop basse",
+  "Un acheteur fait une offre trop basse",
+  "Mon annonce ne génère aucun contact",
+  "Crée ma semaine de publications immobilières",
+  "Prépare une publicité Facebook pour mon bien",
 ];
+
+const loadingSteps = ["Compréhension de la situation", "Diagnostic", "Sélection des experts", "Composition du kit"];
+
+function Icon({ name }: { name: "mic" | "photo" | "send" | "copy" | "check" | "refresh" }) {
+  const paths = {
+    mic: <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8" /></>,
+    photo: <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="m3 16 5-5 4 4 3-3 6 6M8.5 9h.01" /></>,
+    send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>,
+    copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+    refresh: <><path d="M20 7h-6V1" /><path d="M20 7a9 9 0 1 0 1 7" /></>,
+  };
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+}
+
+function CopyButton({ value, label = "Copier" }: { value: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1_800);
+  }
+
+  return <button className="copyButton" onClick={copy}>{copied ? <Icon name="check" /> : <Icon name="copy" />}<span>{copied ? "Copié" : label}</span></button>;
+}
+
+function ContentTile({ label, title, value, className = "" }: { label: string; title: string; value: string; className?: string }) {
+  if (!value.trim()) return null;
+  return (
+    <article className={`contentTile ${className}`.trim()}>
+      <div><small>{label}</small><h3>{title}</h3></div>
+      <p>{value}</p>
+      <CopyButton value={value} />
+    </article>
+  );
+}
+
+function marketingPackAsText(pack: MarketingPack) {
+  return [
+    `ANGLE\n${pack.angle}`,
+    `ANNONCE\n${pack.listing.headline}\n${pack.listing.body}`,
+    `INSTAGRAM\n${pack.social.instagram}`,
+    `FACEBOOK\n${pack.social.facebook}`,
+    `LINKEDIN\n${pack.social.linkedin}`,
+    `PUBLICITÉ\n${pack.advertising.headline}\n${pack.advertising.primaryText}\nCTA : ${pack.advertising.cta}\nAudience : ${pack.advertising.audience}`,
+    `REEL\nAccroche : ${pack.reel.hook}\nPlans :\n${pack.reel.shotList.map((item, index) => `${index + 1}. ${item}`).join("\n")}\nVoix off : ${pack.reel.voiceover}\nLégende : ${pack.reel.caption}`,
+    `BRIEF CANVA\n${pack.visual.canvaBrief}`,
+    `PROMPT CHATGPT\n${pack.aiPrompts.chatgpt}`,
+    `PROMPT IMAGE\n${pack.aiPrompts.imageGenerator || pack.visual.imagePrompt}`,
+    `HASHTAGS\n${pack.hashtags.join(" ")}`,
+  ].filter((section) => section.replace(/^[^\n]+\n/, "").trim()).join("\n\n");
+}
+
+async function compressImage(file: File) {
+  if (!file.type.match(/^image\/(jpeg|png|webp)$/)) throw new Error("Format non pris en charge");
+  if (file.size > 12 * 1024 * 1024) throw new Error("La photo dépasse 12 Mo");
+
+  const source = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / Math.max(source.width, source.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(source.width * scale);
+  canvas.height = Math.round(source.height * scale);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Photo illisible");
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  source.close();
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("home");
   const [situation, setSituation] = useState("");
-  const [active, setActive] = useState<Workflow | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [generated, setGenerated] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [image, setImage] = useState<string>("");
+  const [imageName, setImageName] = useState("");
+  const [kit, setKit] = useState<Kit | null>(null);
+  const [expert, setExpert] = useState("");
+  const [error, setError] = useState("");
+  const [listening, setListening] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("immoboost-simple-dossiers");
-    if (saved) setDossiers(JSON.parse(saved));
-  }, []);
+    if (screen !== "loading") return;
+    const timer = window.setInterval(() => setLoadingStep((step) => Math.min(step + 1, loadingSteps.length - 1)), 900);
+    return () => window.clearInterval(timer);
+  }, [screen]);
 
-  const recommendation = useMemo(() => situation.trim() ? searchWorkflows(situation, "all")[0] ?? workflows[0] : null, [situation]);
-  const prompt = useMemo(() => active ? buildExpertPrompt(active, { situation, ...values }) : "", [active, situation, values]);
-  const missingRequired = active?.fields.some((field) => field.required && !values[field.id]?.trim()) ?? true;
+  async function prepareKit(text = situation) {
+    const cleanText = text.trim();
+    if (!cleanText && !image) return;
+    setSituation(cleanText);
+    setError("");
+    setLoadingStep(0);
+    setScreen("loading");
 
-  function diagnose(text = situation) {
-    if (!text.trim()) return;
-    setSituation(text);
-    setScreen("diagnosis");
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: cleanText, image: image || undefined }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Le kit n’a pas pu être préparé.");
+      setKit(data.kit);
+      setExpert(data.expert?.name || "Expert ImmoBoost");
+      setScreen("kit");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Une erreur est survenue.");
+      setScreen("home");
+    }
   }
 
-  function startWorkflow(workflow: Workflow) {
-    setActive(workflow);
-    setValues({});
-    setGenerated(false);
-    setScreen("workflow");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  function startListening() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("La dictée vocale n’est pas disponible dans ce navigateur. Vous pouvez utiliser le micro du clavier.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "fr-BE";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event) => setSituation((current) => `${current} ${event.results[0][0].transcript}`.trim());
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => {
+      setListening(false);
+      setError("Je n’ai pas pu entendre la dictée. Réessayez ou utilisez le clavier.");
+    };
+    recognitionRef.current = recognition;
+    setError("");
+    setListening(true);
+    recognition.start();
   }
 
-  async function launch(provider: Provider) {
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    window.open(provider.url, "_blank", "noopener,noreferrer");
-    setTimeout(() => setCopied(false), 1600);
+  async function handleImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setError("");
+      setImage(await compressImage(file));
+      setImageName(file.name);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "La photo n’a pas pu être ajoutée.");
+    }
+    event.target.value = "";
   }
 
   function reset() {
     setScreen("home");
     setSituation("");
-    setActive(null);
-    setGenerated(false);
+    setImage("");
+    setImageName("");
+    setKit(null);
+    setError("");
   }
 
   return (
-    <main className="copilotShell">
-      <header className="minimalTopbar">
-        <button className="wordmark" onClick={reset}><span>IB</span><strong>ImmoBoost</strong></button>
-        <div className="topActions">
-          <button onClick={() => setScreen("dossiers")}>Mes dossiers</button>
-          <span>Belgique · FR</span>
-        </div>
+    <main className="appShell">
+      <header className="topbar">
+        <button className="brand" onClick={reset} aria-label="Accueil ImmoBoost"><span className="brandMark">IB</span><span>ImmoBoost <b>AI</b></span></button>
+        <span className="market">Belgique · FR</span>
       </header>
 
       {screen === "home" && (
-        <section className="calmHome">
-          <div className="ambientOrb orbOne" />
-          <div className="ambientOrb orbTwo" />
-          <div className="homeContent">
-            <span className="softLabel">VOTRE COPILOTE IMMOBILIER</span>
-            <h1>Que se passe-t-il aujourd’hui&nbsp;?</h1>
-            <p>Expliquez simplement la situation. ImmoBoost trouve la bonne marche à suivre.</p>
-            <div className="situationBox">
-              <textarea value={situation} onChange={(e) => setSituation(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); diagnose(); } }} placeholder="Ex. Mon vendeur trouve mes honoraires trop élevés…" />
-              <button onClick={() => diagnose()} disabled={!situation.trim()}>Continuer <span>→</span></button>
+        <section className="homeScreen">
+          <div className="glow glowOne" /><div className="glow glowTwo" />
+          <div className="homeInner">
+            <div className="eyebrow"><span /> Assistant immobilier intelligent</div>
+            <h1>Que se passe-t-il<br />aujourd’hui&nbsp;?</h1>
+            <p className="homeLead">Décrivez la situation. ImmoBoost comprend, décide et prépare tout ce dont vous avez besoin.</p>
+
+            <div className="missionInput">
+              {image && <div className="imagePreview"><img src={image} alt="Photo jointe" /><span>{imageName}</span><button onClick={() => { setImage(""); setImageName(""); }} aria-label="Retirer la photo">×</button></div>}
+              <textarea
+                autoFocus
+                value={situation}
+                onChange={(event) => setSituation(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void prepareKit(); } }}
+                placeholder="Ex. Mon vendeur refuse de baisser son prix…"
+                maxLength={5_000}
+              />
+              <div className="inputActions">
+                <div className="mediaActions">
+                  <button className={listening ? "iconButton listening" : "iconButton"} onClick={startListening} aria-label="Dicter la situation"><Icon name="mic" /></button>
+                  <button className="iconButton" onClick={() => inputRef.current?.click()} aria-label="Ajouter une photo"><Icon name="photo" /></button>
+                  <input ref={inputRef} className="hiddenInput" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImage} />
+                </div>
+                <button className="submitButton" onClick={() => void prepareKit()} disabled={!situation.trim() && !image}><span>Préparer mon kit</span><Icon name="send" /></button>
+              </div>
             </div>
-            <div className="quickStarts">
-              {quickStarts.map((item) => <button key={item} onClick={() => diagnose(item)}>{item}</button>)}
+
+            {error && <div className="errorMessage" role="alert">{error}</div>}
+
+            <div className="suggestions" aria-label="Suggestions">
+              {suggestions.map((suggestion) => <button key={suggestion} onClick={() => void prepareKit(suggestion)}>{suggestion}<span>↗</span></button>)}
             </div>
-            <div className="quietPromise"><span>✦</span><p>Une demande. Une recommandation claire. Les supports prêts juste après.</p></div>
+            <p className="privacyNote"><span>●</span> Aucun historique IA n’est créé pour vos demandes.</p>
           </div>
         </section>
       )}
 
-      {screen === "diagnosis" && recommendation && (
-        <section className="diagnosisScreen">
-          <button className="ghostBack" onClick={reset}>← Revenir</button>
-          <div className="diagnosisIntro">
-            <div className="pulseCore"><span>✦</span></div>
-            <small>SITUATION COMPRISE</small>
-            <h1>{situation}</h1>
-            <p>Je vous recommande de commencer par l’action qui débloquera le plus vite la situation.</p>
+      {screen === "loading" && (
+        <section className="loadingScreen" aria-live="polite">
+          <div className="brainPulse"><span>IB</span><i /><i /></div>
+          <p className="loadingEyebrow">MISSION BRAIN</p>
+          <h1>Je prépare votre solution.</h1>
+          <div className="loadingTrack">
+            {loadingSteps.map((step, index) => <div key={step} className={index < loadingStep ? "done" : index === loadingStep ? "active" : ""}><span>{index < loadingStep ? "✓" : index + 1}</span><p>{step}</p></div>)}
           </div>
-          <div className="recommendationStage">
-            <article className="primaryRecommendation">
-              <span className="recommendationIcon">{recommendation.icon}</span>
-              <div><small>COMMENCEZ PAR CECI</small><h2>{recommendation.title}</h2><p>{recommendation.promise}</p></div>
-              <button onClick={() => startWorkflow(recommendation)}>Préparer pour moi <span>→</span></button>
+        </section>
+      )}
+
+      {screen === "kit" && kit && (
+        <section className="kitScreen">
+          <div className="kitTopline">
+            <button className="newMission" onClick={reset}><Icon name="refresh" /> Nouvelle situation</button>
+            <span>Kit préparé par {expert}</span>
+          </div>
+
+          <header className="kitHero">
+            <div className="statusPill"><span>✓</span> Situation comprise</div>
+            <h1>{kit.title}</h1>
+            <p>{kit.diagnostic}</p>
+            <div className="objectiveLine"><span>Objectif</span><strong>{kit.objective}</strong><i>{kit.urgency}</i></div>
+          </header>
+
+          <div className="kitGrid">
+            <article className="kitCard planCard">
+              <div className="cardHeading"><span className="cardNumber">01</span><div><small>PLAN D’ACTION</small><h2>La marche à suivre</h2></div></div>
+              <div className="planSteps">{kit.plan.map((step, index) => <div key={`${step.title}-${index}`}><span>{index + 1}</span><div><strong>{step.title}</strong><p>{step.detail}</p></div></div>)}</div>
             </article>
-            <div className="nextSteps">
-              <article><span>1</span><div><strong>Répondez à quelques questions</strong><p>Uniquement ce qui change réellement la réponse.</p></div></article>
-              <article><span>2</span><div><strong>Recevez votre kit complet</strong><p>Plan, message, script, checklist ou contenu selon le besoin.</p></div></article>
-              <article><span>3</span><div><strong>Exécutez avec votre IA</strong><p>ChatGPT, Gemini ou Claude, sans coût API pour ImmoBoost.</p></div></article>
-            </div>
-          </div>
-        </section>
-      )}
 
-      {screen === "workflow" && active && (
-        <section className="focusScreen">
-          <button className="ghostBack" onClick={() => setScreen("diagnosis")}>← Revenir à la recommandation</button>
-          <div className="focusHeader"><span>{active.icon}</span><div><small>PRÉPARATION GUIDÉE</small><h1>{active.title}</h1><p>{active.promise}</p></div></div>
-          {!generated ? (
-            <div className="singleTaskCard">
-              <div className="stepLine"><span>01</span><div><strong>Donnez uniquement le contexte utile</strong><p>ImmoBoost s’occupe de la structure, du ton et des garde-fous.</p></div></div>
-              <div className="airyFields">
-                {active.fields.map((field) => <label key={field.id}><span>{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} /> : field.type === "text" ? <input value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} /> : <select value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })}><option value="">Choisir…</option>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</label>)}
-              </div>
-              <button className="prepareButton" disabled={missingRequired} onClick={() => setGenerated(true)}>Préparer mon kit <span>→</span></button>
-            </div>
-          ) : (
-            <div className="readyLayout">
-              <div className="readyCard">
-                <div className="stepLine"><span>02</span><div><strong>Votre kit est prêt</strong><p>Le brief expert ci-dessous réunit déjà la méthode et les contrôles qualité.</p></div></div>
-                <pre>{prompt}</pre>
-                <button className="subtleButton" onClick={() => navigator.clipboard.writeText(prompt)}>{copied ? "Copié ✓" : "Copier le kit"}</button>
-              </div>
-              <aside className="providerDock"><small>CONTINUER AVEC</small>{providers.map((provider) => <button key={provider.name} onClick={() => launch(provider)}><span>{provider.icon}</span><strong>{provider.name}</strong><b>↗</b></button>)}<p>Le kit est copié automatiquement avant l’ouverture.</p></aside>
-            </div>
-          )}
-        </section>
-      )}
+            <aside className="nextActionCard">
+              <small>PROCHAINE ACTION</small>
+              <span className="actionWhen">{kit.nextAction.when}</span>
+              <h2>{kit.nextAction.title}</h2>
+              <p>{kit.nextAction.detail}</p>
+            </aside>
 
-      {screen === "dossiers" && (
-        <section className="simpleDossiers">
-          <button className="ghostBack" onClick={reset}>← Accueil</button>
-          <div className="dossiersTitle"><small>MES DOSSIERS</small><h1>Vos biens, sans bruit autour.</h1><p>Une vue simple pour garder le fil.</p></div>
-          <div className="dossiersGrid">
-            {dossiers.length === 0 ? <div className="emptyDossier"><span>⌂</span><h2>Aucun dossier pour le moment</h2><p>Les prochains sprints ajouteront ici la mémoire complète du bien.</p></div> : dossiers.map((d) => <article key={d.id}><small>{d.stage}</small><h2>{d.name}</h2><p>{d.location}</p></article>)}
+            <article className="kitCard emailCard">
+              <div className="cardHeading"><span className="cardNumber">02</span><div><small>EMAIL</small><h2>Prêt à envoyer</h2></div><CopyButton value={`Objet : ${kit.email.subject}\n\n${kit.email.body}`} /></div>
+              <div className="messageBox"><strong>Objet : {kit.email.subject}</strong><p>{kit.email.body}</p></div>
+            </article>
+
+            <article className="kitCard smsCard">
+              <div className="cardHeading"><span className="cardNumber">03</span><div><small>SMS / WHATSAPP</small><h2>Version courte</h2></div><CopyButton value={kit.sms} /></div>
+              <div className="phoneBubble">{kit.sms}</div>
+            </article>
+
+            <article className="kitCard callCard">
+              <div className="cardHeading"><span className="cardNumber">04</span><div><small>APPEL</small><h2>Votre script</h2></div><CopyButton value={[kit.callScript.opening, ...kit.callScript.questions, ...kit.callScript.objections, kit.callScript.closing].join("\n\n")} /></div>
+              <div className="scriptBlock"><label>Ouverture</label><p>{kit.callScript.opening}</p></div>
+              <div className="scriptColumns"><div><label>Questions</label><ul>{kit.callScript.questions.map((item) => <li key={item}>{item}</li>)}</ul></div><div><label>Réponses aux objections</label><ul>{kit.callScript.objections.map((item) => <li key={item}>{item}</li>)}</ul></div></div>
+              <div className="scriptBlock closing"><label>Conclusion</label><p>{kit.callScript.closing}</p></div>
+            </article>
+
+            {kit.marketingPack.enabled && (
+              <article className="kitCard marketingCard">
+                <div className="cardHeading marketingHeading"><span className="cardNumber">05</span><div><small>GROWTH PACK</small><h2>Votre campagne complète</h2></div><CopyButton value={marketingPackAsText(kit.marketingPack)} label="Copier tout" /></div>
+                <div className="marketingAngle"><span>ANGLE CENTRAL</span><strong>{kit.marketingPack.angle}</strong></div>
+
+                {(kit.marketingPack.listing.headline || kit.marketingPack.listing.body) && (
+                  <section className="listingContent">
+                    <div className="contentSectionTitle"><small>ANNONCE IMMOBILIÈRE</small><h3>{kit.marketingPack.listing.headline}</h3><CopyButton value={`${kit.marketingPack.listing.headline}\n\n${kit.marketingPack.listing.body}`} /></div>
+                    <p>{kit.marketingPack.listing.body}</p>
+                  </section>
+                )}
+
+                <div className="marketingGroupTitle"><span>PUBLICATIONS</span><p>Chaque réseau reçoit un texte adapté à son audience.</p></div>
+                <div className="contentTiles socialTiles">
+                  <ContentTile label="INSTAGRAM" title="Publication visuelle" value={`${kit.marketingPack.social.instagram}\n\n${kit.marketingPack.hashtags.join(" ")}`} />
+                  <ContentTile label="FACEBOOK" title="Publication locale" value={kit.marketingPack.social.facebook} />
+                  <ContentTile label="LINKEDIN" title="Publication expertise" value={kit.marketingPack.social.linkedin} />
+                </div>
+
+                <div className="marketingGroupTitle"><span>ACQUISITION</span><p>Une publicité et un Reel structurés pour générer l’action.</p></div>
+                <div className="contentTiles acquisitionTiles">
+                  <ContentTile label="PUBLICITÉ" title={kit.marketingPack.advertising.headline || "Campagne sponsorisée"} value={`${kit.marketingPack.advertising.primaryText}\n\nCTA : ${kit.marketingPack.advertising.cta}\nAudience : ${kit.marketingPack.advertising.audience}`} className="accentTile" />
+                  <ContentTile label="SCRIPT REEL" title={kit.marketingPack.reel.hook || "Vidéo courte"} value={`${kit.marketingPack.reel.shotList.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\nVoix off : ${kit.marketingPack.reel.voiceover}\n\nLégende : ${kit.marketingPack.reel.caption}`} />
+                </div>
+
+                <div className="marketingGroupTitle"><span>STUDIO CRÉATIF</span><p>Les instructions prêtes pour Canva, ChatGPT ou votre générateur d’images.</p></div>
+                <div className="contentTiles creativeTiles">
+                  <ContentTile label="CANVA" title="Brief visuel" value={kit.marketingPack.visual.canvaBrief} />
+                  <ContentTile label="CHATGPT / CLAUDE / GEMINI" title="Prompt expert" value={kit.marketingPack.aiPrompts.chatgpt} />
+                  <ContentTile label="GÉNÉRATEUR D’IMAGES" title="Prompt visuel" value={kit.marketingPack.aiPrompts.imageGenerator || kit.marketingPack.visual.imagePrompt} />
+                </div>
+              </article>
+            )}
+
+            <article className="kitCard checklistCard">
+              <div className="cardHeading"><span className="cardNumber">{kit.marketingPack.enabled ? "06" : "05"}</span><div><small>CHECKLIST</small><h2>Avant d’agir</h2></div></div>
+              <ul className="checkList">{kit.checklist.map((item) => <li key={item}><span><Icon name="check" /></span>{item}</li>)}</ul>
+            </article>
+
+            <article className="kitCard documentsCard">
+              <div className="cardHeading"><span className="cardNumber">{kit.marketingPack.enabled ? "07" : "06"}</span><div><small>DOCUMENTS</small><h2>À réunir</h2></div></div>
+              {kit.documents.length ? <div className="documentList">{kit.documents.map((item) => <div key={item}><span>DOC</span><p>{item}</p></div>)}</div> : <p className="emptyState">Aucun document nécessaire pour cette action.</p>}
+            </article>
           </div>
+
+          {(kit.warning || kit.sources.length > 0) && <footer className="verificationBox">{kit.warning && <p><strong>À vérifier</strong>{kit.warning}</p>}{kit.sources.length > 0 && <div><strong>Sources officielles</strong>{kit.sources.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>)}</div>}</footer>}
         </section>
       )}
     </main>
