@@ -1,141 +1,159 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buildExpertPrompt, categoryLabels, searchWorkflows, workflows, type Workflow, type WorkflowCategory } from "../lib/workflows";
+import { buildExpertPrompt, searchWorkflows, workflows, type Workflow } from "../lib/workflows";
 
-type Provider = { id: string; name: string; icon: string; url: string; note: string };
-type CategoryFilter = WorkflowCategory | "all";
-type View = "missions" | "dossiers" | "workflow";
-type Dossier = { id: string; name: string; location: string; type: string; stage: string; createdAt: string; missions: string[] };
+type Provider = { name: string; icon: string; url: string };
+type Screen = "home" | "diagnosis" | "workflow" | "dossiers";
+type Dossier = { id: string; name: string; location: string; stage: string };
 
 const providers: Provider[] = [
-  { id: "chatgpt", name: "ChatGPT", icon: "◉", url: "https://chatgpt.com/", note: "Le plus simple pour démarrer" },
-  { id: "gemini", name: "Gemini", icon: "✦", url: "https://gemini.google.com/app", note: "Alternative Google" },
-  { id: "claude", name: "Claude", icon: "◇", url: "https://claude.ai/new", note: "Excellent pour la rédaction" },
+  { name: "ChatGPT", icon: "◉", url: "https://chatgpt.com/" },
+  { name: "Gemini", icon: "✦", url: "https://gemini.google.com/app" },
+  { name: "Claude", icon: "◇", url: "https://claude.ai/new" },
 ];
 
-const categoryIcons: Record<WorkflowCategory, string> = { mandat: "🎯", vente: "🏠", acheteur: "🤝", business: "📈", dossier: "📂" };
-const stages = ["Prospect", "Estimation", "Mandat", "Photos", "Annonce", "Visites", "Offre", "Compromis", "Acte"];
+const quickStarts = [
+  "Mon vendeur refuse l’exclusivité",
+  "Je dois créer une annonce",
+  "J’ai une visite dans une heure",
+  "Mon acheteur fait une offre trop basse",
+];
 
 export default function Home() {
-  const [view, setView] = useState<View>("missions");
+  const [screen, setScreen] = useState<Screen>("home");
+  const [situation, setSituation] = useState("");
   const [active, setActive] = useState<Workflow | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [generated, setGenerated] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<CategoryFilter>("all");
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
-  const [newDossier, setNewDossier] = useState({ name: "", location: "", type: "Appartement" });
-  const [selectedDossierId, setSelectedDossierId] = useState("");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("immoboost-dossiers");
-    if (stored) setDossiers(JSON.parse(stored));
+    const saved = localStorage.getItem("immoboost-simple-dossiers");
+    if (saved) setDossiers(JSON.parse(saved));
   }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem("immoboost-dossiers", JSON.stringify(dossiers));
-  }, [dossiers]);
-
-  const prompt = useMemo(() => (active ? buildExpertPrompt(active, values) : ""), [active, values]);
+  const recommendation = useMemo(() => situation.trim() ? searchWorkflows(situation, "all")[0] ?? workflows[0] : null, [situation]);
+  const prompt = useMemo(() => active ? buildExpertPrompt(active, { situation, ...values }) : "", [active, situation, values]);
   const missingRequired = active?.fields.some((field) => field.required && !values[field.id]?.trim()) ?? true;
-  const filtered = useMemo(() => searchWorkflows(query, category), [query, category]);
-  const featured = workflows.filter((workflow) => workflow.featured);
-  const suggested = query.trim() ? filtered[0] : null;
 
-  function openWorkflow(workflow: Workflow, dossierId = "") {
+  function diagnose(text = situation) {
+    if (!text.trim()) return;
+    setSituation(text);
+    setScreen("diagnosis");
+  }
+
+  function startWorkflow(workflow: Workflow) {
     setActive(workflow);
     setValues({});
     setGenerated(false);
-    setCopied(false);
-    setSelectedDossierId(dossierId);
-    setView("workflow");
+    setScreen("workflow");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function copyPrompt() {
-    if (!prompt) return;
+  async function launch(provider: Provider) {
     await navigator.clipboard.writeText(prompt);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  }
-
-  async function launch(provider: Provider) {
-    await copyPrompt();
-    if (selectedDossierId && active) {
-      setDossiers((current) => current.map((dossier) => dossier.id === selectedDossierId && !dossier.missions.includes(active.id) ? { ...dossier, missions: [...dossier.missions, active.id] } : dossier));
-    }
     window.open(provider.url, "_blank", "noopener,noreferrer");
+    setTimeout(() => setCopied(false), 1600);
   }
 
-  function goHome() {
-    setView("missions");
+  function reset() {
+    setScreen("home");
+    setSituation("");
     setActive(null);
     setGenerated(false);
   }
 
-  function createDossier() {
-    if (!newDossier.name.trim()) return;
-    const dossier: Dossier = {
-      id: crypto.randomUUID(), name: newDossier.name.trim(), location: newDossier.location.trim(), type: newDossier.type,
-      stage: "Prospect", createdAt: new Date().toLocaleDateString("fr-BE"), missions: [],
-    };
-    setDossiers((current) => [dossier, ...current]);
-    setNewDossier({ name: "", location: "", type: "Appartement" });
-  }
-
-  function updateStage(id: string, stage: string) {
-    setDossiers((current) => current.map((dossier) => dossier.id === id ? { ...dossier, stage } : dossier));
-  }
-
   return (
-    <main className="appShell">
-      <header className="topbar">
-        <button className="logo" onClick={goHome}>IB</button>
-        <div className="brand"><strong>ImmoBoost™ Belgique</strong><span>Le cockpit quotidien de l’agent immobilier.</span></div>
-        <nav className="topNav"><button className={view === "missions" ? "active" : ""} onClick={goHome}>Missions</button><button className={view === "dossiers" ? "active" : ""} onClick={() => setView("dossiers")}>Mes dossiers</button></nav>
-        <span className="market">🇧🇪 Belgique · FR</span>
+    <main className="copilotShell">
+      <header className="minimalTopbar">
+        <button className="wordmark" onClick={reset}><span>IB</span><strong>ImmoBoost</strong></button>
+        <div className="topActions">
+          <button onClick={() => setScreen("dossiers")}>Mes dossiers</button>
+          <span>Belgique · FR</span>
+        </div>
       </header>
 
-      {view === "missions" && (
-        <>
-          <section className="hero landingHero">
-            <span className="eyebrow">MISSION ENGINE 2.0</span>
-            <h1>Dites ce qui se passe. ImmoBoost ouvre la bonne mission.</h1>
-            <p>Une situation, quelques réponses, un kit senior prêt à exécuter. Aucun menu labyrinthique.</p>
-            <div className="missionSearch"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ex. vendeur refuse l’exclusivité, offre trop basse, créer un Reel…" />{query && <button onClick={() => setQuery("")}>Effacer</button>}</div>
-            {suggested && <button className="smartSuggestion" onClick={() => openWorkflow(suggested)}><span>{suggested.icon}</span><div><small>MISSION RECOMMANDÉE</small><strong>{suggested.title}</strong><p>{suggested.promise}</p></div><b>Ouvrir →</b></button>}
-          </section>
-
-          <section className="workspace dashboardWorkspace">
-            {!query && category === "all" && <div className="featuredBlock"><div className="sectionHeading"><span>MISSIONS EXPRESS</span><h2>Les besoins les plus fréquents</h2></div><div className="featuredGrid">{featured.map((workflow) => <button className="featuredCard" key={workflow.id} onClick={() => openWorkflow(workflow)}><span>{workflow.icon}</span><div><strong>{workflow.title}</strong><small>{workflow.promise}</small></div><b>→</b></button>)}</div></div>}
-            <div className="categoryTabs"><button className={category === "all" ? "active" : ""} onClick={() => setCategory("all")}>Tout</button>{(Object.keys(categoryLabels) as WorkflowCategory[]).map((key) => <button className={category === key ? "active" : ""} key={key} onClick={() => setCategory(key)}>{categoryIcons[key]} {categoryLabels[key].title}</button>)}</div>
-            <div className="catalogHeader"><div><span>CATALOGUE IMMOBOOST</span><h2>{query ? `Résultats pour « ${query} »` : category === "all" ? "Toutes les missions" : categoryLabels[category].title}</h2></div><strong>{filtered.length} mission{filtered.length > 1 ? "s" : ""}</strong></div>
-            <div className="workflowGrid">{filtered.map((workflow) => <button className="workflowCard" key={workflow.id} onClick={() => openWorkflow(workflow)}><span className="workflowIcon">{workflow.icon}</span><div><strong>{workflow.title}</strong><small>{workflow.promise}</small><em>{categoryLabels[workflow.category].title}</em></div><b>Commencer →</b></button>)}</div>
-          </section>
-        </>
-      )}
-
-      {view === "dossiers" && (
-        <section className="workspace dossierWorkspace">
-          <div className="dossierHero"><div><span className="eyebrow">MES DOSSIERS</span><h1>Chaque bien garde son contexte.</h1><p>Annonce, photos, visites, offres et missions restent regroupées au même endroit sur cet appareil.</p></div><div className="dossierStats"><strong>{dossiers.length}</strong><span>dossier{dossiers.length !== 1 ? "s" : ""}</span></div></div>
-          <div className="dossierLayout">
-            <div className="newDossierCard"><h2>Créer un dossier</h2><input placeholder="Nom du bien ou adresse courte" value={newDossier.name} onChange={(e) => setNewDossier({ ...newDossier, name: e.target.value })}/><input placeholder="Commune ou quartier" value={newDossier.location} onChange={(e) => setNewDossier({ ...newDossier, location: e.target.value })}/><select value={newDossier.type} onChange={(e) => setNewDossier({ ...newDossier, type: e.target.value })}><option>Appartement</option><option>Maison</option><option>Terrain</option><option>Immeuble</option><option>Commerce</option></select><button onClick={createDossier} disabled={!newDossier.name.trim()}>Créer le dossier</button></div>
-            <div className="dossierList">{dossiers.length === 0 && <div className="emptyState"><span>📂</span><strong>Aucun dossier pour le moment.</strong><p>Créez votre premier bien et lancez ses missions depuis le même espace.</p></div>}{dossiers.map((dossier) => <article className="dossierCard" key={dossier.id}><div className="dossierHead"><div><small>{dossier.type.toUpperCase()}</small><h2>{dossier.name}</h2><p>{dossier.location || "Localisation non précisée"} · créé le {dossier.createdAt}</p></div><span>{dossier.stage}</span></div><div className="timeline">{stages.map((stage) => <button key={stage} className={stages.indexOf(stage) <= stages.indexOf(dossier.stage) ? "done" : ""} onClick={() => updateStage(dossier.id, stage)}><i></i><small>{stage}</small></button>)}</div><div className="dossierMissions"><strong>Missions du dossier</strong><div>{["annonce", "photos", "visite", "offre", "diffusion"].map((id) => { const workflow = workflows.find((item) => item.id === id); if (!workflow) return null; return <button key={id} className={dossier.missions.includes(id) ? "completed" : ""} onClick={() => openWorkflow(workflow, dossier.id)}><span>{workflow.icon}</span>{workflow.title}{dossier.missions.includes(id) && <b>✓</b>}</button>; })}</div></div></article>)}</div>
+      {screen === "home" && (
+        <section className="calmHome">
+          <div className="ambientOrb orbOne" />
+          <div className="ambientOrb orbTwo" />
+          <div className="homeContent">
+            <span className="softLabel">VOTRE COPILOTE IMMOBILIER</span>
+            <h1>Que se passe-t-il aujourd’hui&nbsp;?</h1>
+            <p>Expliquez simplement la situation. ImmoBoost trouve la bonne marche à suivre.</p>
+            <div className="situationBox">
+              <textarea value={situation} onChange={(e) => setSituation(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); diagnose(); } }} placeholder="Ex. Mon vendeur trouve mes honoraires trop élevés…" />
+              <button onClick={() => diagnose()} disabled={!situation.trim()}>Continuer <span>→</span></button>
+            </div>
+            <div className="quickStarts">
+              {quickStarts.map((item) => <button key={item} onClick={() => diagnose(item)}>{item}</button>)}
+            </div>
+            <div className="quietPromise"><span>✦</span><p>Une demande. Une recommandation claire. Les supports prêts juste après.</p></div>
           </div>
         </section>
       )}
 
-      {view === "workflow" && active && (
-        <section className="workflowScreen">
-          <button className="backLink" onClick={() => selectedDossierId ? setView("dossiers") : goHome()}>← {selectedDossierId ? "Retour au dossier" : "Toutes les missions"}</button>
-          <div className="workflowHero"><span className="workflowHeroIcon">{active.icon}</span><div><small>{categoryLabels[active.category].title.toUpperCase()}</small><h1>{active.title}</h1><p>{active.promise}</p></div></div>
-          {!generated ? <div className="builderLayout"><div className="formCard"><div className="stepHeader"><span>01</span><div><strong>Donnez le contexte</strong><small>Uniquement les informations utiles. ImmoBoost construit le reste.</small></div></div><div className="fieldGrid">{active.fields.map((field) => <label key={field.id}><span>{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" && <textarea value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder}/>} {field.type === "text" && <input value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder}/>} {field.type === "select" && <select value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })}><option value="">Choisir…</option>{field.options?.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select>}</label>)}</div><button className="primaryCta" disabled={missingRequired} onClick={() => setGenerated(true)}>Préparer mon kit expert →</button></div><aside className="outputPreview"><small>VOTRE KIT CONTIENDRA</small>{active.output.map((item) => <div key={item}><span>✓</span><strong>{item}</strong></div>)}</aside></div> : <div className="resultLayout"><div className="promptCard"><div className="stepHeader"><span>02</span><div><strong>Votre kit expert est prêt</strong><small>Mission, contexte, livrables et contrôles qualité sont réunis.</small></div></div><div className="promptPreview">{prompt}</div><div className="promptActions"><button onClick={copyPrompt}>{copied ? "Copié ✓" : "Copier le brief"}</button><button className="secondary" onClick={() => setGenerated(false)}>Modifier</button></div></div><aside className="providerPanel"><small>03 · EXÉCUTER LA MISSION</small><h2>Ouvrez votre IA</h2><p>Le brief est copié automatiquement. Collez-le dans la conversation.</p>{providers.map((provider) => <button key={provider.id} onClick={() => launch(provider)}><span>{provider.icon}</span><div><strong>{provider.name}</strong><small>{provider.note}</small></div><b>Ouvrir ↗</b></button>)}<div className="zeroCost"><strong>Coût IA pour ImmoBoost : 0 €</strong><span>L’utilisateur emploie son propre accès.</span></div></aside></div>}
+      {screen === "diagnosis" && recommendation && (
+        <section className="diagnosisScreen">
+          <button className="ghostBack" onClick={reset}>← Revenir</button>
+          <div className="diagnosisIntro">
+            <div className="pulseCore"><span>✦</span></div>
+            <small>SITUATION COMPRISE</small>
+            <h1>{situation}</h1>
+            <p>Je vous recommande de commencer par l’action qui débloquera le plus vite la situation.</p>
+          </div>
+          <div className="recommendationStage">
+            <article className="primaryRecommendation">
+              <span className="recommendationIcon">{recommendation.icon}</span>
+              <div><small>COMMENCEZ PAR CECI</small><h2>{recommendation.title}</h2><p>{recommendation.promise}</p></div>
+              <button onClick={() => startWorkflow(recommendation)}>Préparer pour moi <span>→</span></button>
+            </article>
+            <div className="nextSteps">
+              <article><span>1</span><div><strong>Répondez à quelques questions</strong><p>Uniquement ce qui change réellement la réponse.</p></div></article>
+              <article><span>2</span><div><strong>Recevez votre kit complet</strong><p>Plan, message, script, checklist ou contenu selon le besoin.</p></div></article>
+              <article><span>3</span><div><strong>Exécutez avec votre IA</strong><p>ChatGPT, Gemini ou Claude, sans coût API pour ImmoBoost.</p></div></article>
+            </div>
+          </div>
         </section>
       )}
 
-      <footer className="footerNote"><strong>ImmoBoost Belgique uniquement.</strong><span>Les dossiers sont enregistrés localement sur cet appareil. Aucune donnée sensible ne doit être saisie.</span></footer>
+      {screen === "workflow" && active && (
+        <section className="focusScreen">
+          <button className="ghostBack" onClick={() => setScreen("diagnosis")}>← Revenir à la recommandation</button>
+          <div className="focusHeader"><span>{active.icon}</span><div><small>PRÉPARATION GUIDÉE</small><h1>{active.title}</h1><p>{active.promise}</p></div></div>
+          {!generated ? (
+            <div className="singleTaskCard">
+              <div className="stepLine"><span>01</span><div><strong>Donnez uniquement le contexte utile</strong><p>ImmoBoost s’occupe de la structure, du ton et des garde-fous.</p></div></div>
+              <div className="airyFields">
+                {active.fields.map((field) => <label key={field.id}><span>{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} /> : field.type === "text" ? <input value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} /> : <select value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })}><option value="">Choisir…</option>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</label>)}
+              </div>
+              <button className="prepareButton" disabled={missingRequired} onClick={() => setGenerated(true)}>Préparer mon kit <span>→</span></button>
+            </div>
+          ) : (
+            <div className="readyLayout">
+              <div className="readyCard">
+                <div className="stepLine"><span>02</span><div><strong>Votre kit est prêt</strong><p>Le brief expert ci-dessous réunit déjà la méthode et les contrôles qualité.</p></div></div>
+                <pre>{prompt}</pre>
+                <button className="subtleButton" onClick={() => navigator.clipboard.writeText(prompt)}>{copied ? "Copié ✓" : "Copier le kit"}</button>
+              </div>
+              <aside className="providerDock"><small>CONTINUER AVEC</small>{providers.map((provider) => <button key={provider.name} onClick={() => launch(provider)}><span>{provider.icon}</span><strong>{provider.name}</strong><b>↗</b></button>)}<p>Le kit est copié automatiquement avant l’ouverture.</p></aside>
+            </div>
+          )}
+        </section>
+      )}
+
+      {screen === "dossiers" && (
+        <section className="simpleDossiers">
+          <button className="ghostBack" onClick={reset}>← Accueil</button>
+          <div className="dossiersTitle"><small>MES DOSSIERS</small><h1>Vos biens, sans bruit autour.</h1><p>Une vue simple pour garder le fil.</p></div>
+          <div className="dossiersGrid">
+            {dossiers.length === 0 ? <div className="emptyDossier"><span>⌂</span><h2>Aucun dossier pour le moment</h2><p>Les prochains sprints ajouteront ici la mémoire complète du bien.</p></div> : dossiers.map((d) => <article key={d.id}><small>{d.stage}</small><h2>{d.name}</h2><p>{d.location}</p></article>)}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
