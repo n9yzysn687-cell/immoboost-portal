@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "immoboost-ai",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-17",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Après `npx wrangler d1 create immoboost`, ajouter ici le bloc
+  // `d1_databases` généré par Wrangler avec le binding `IMMOBOOST_DB`.
+  // L'absence du binding fait échouer les missions en mode commercial.
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "immoboost-ai"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "immoboost-portal",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,14 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "security:audit": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=high",
+    "db:migrate": "node scripts/migrate-d1.mjs",
+    "preview:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare preview",
+    "build:cloudflare": "node scripts/clean-open-next.mjs && opennextjs-cloudflare build",
+    "deploy:cloudflare": "npm run build:cloudflare && opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.1",
     "@types/node": "24.0.15",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
@@ -19,5 +24,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "typescript": "5.8.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.111.0"
   }
 }

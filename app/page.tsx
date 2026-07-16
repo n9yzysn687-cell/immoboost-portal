@@ -14,9 +14,25 @@ type DataPassport = {
   usedForModelTraining: boolean;
   providerSafetyRetention: string;
   boostEstimate: number;
+  boostsDebited: number;
+  balanceAfter: number | null;
+  availableAfter: number | null;
+  commerceMode: "preview" | "enforced";
+  billingStatus: "preview" | "settled" | "released" | "pending";
+};
+
+type AccessState = {
+  loading: boolean;
+  mode: "preview" | "enforced";
+  authenticated: boolean;
+  balance: number | null;
+  available: number | null;
+  canRecharge?: boolean;
+  canSubscribe?: boolean;
 };
 
 type Screen = "home" | "loading" | "kit";
+type SavedAction = { id: string; title: string; startAt: string };
 
 interface SpeechRecognitionEventLike {
   results: ArrayLike<{ 0: { transcript: string } }>;
@@ -103,6 +119,42 @@ function marketingPackAsText(pack: MarketingPack) {
   ].filter((section) => section.replace(/^[^\n]+\n/, "").trim()).join("\n\n");
 }
 
+function calendarDate(date: Date) {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function calendarText(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+
+function addToCalendar(action: Kit["nextAction"]) {
+  const parsed = new Date(action.startAt);
+  const start = Number.isFinite(parsed.getTime()) ? parsed : new Date(Date.now() + 60 * 60 * 1_000);
+  const end = new Date(start.getTime() + 30 * 60 * 1_000);
+  const calendar = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//ImmoBoost AI//Action//FR",
+    "BEGIN:VEVENT",
+    `UID:${crypto.randomUUID()}@immoboost.ai`,
+    `DTSTAMP:${calendarDate(new Date())}`,
+    `DTSTART:${calendarDate(start)}`,
+    `DTEND:${calendarDate(end)}`,
+    `SUMMARY:${calendarText(action.title)}`,
+    `DESCRIPTION:${calendarText(action.detail)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const url = URL.createObjectURL(new Blob([calendar], { type: "text/calendar;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "action-immoboost.ics";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
 async function compressImage(file: File) {
   if (!file.type.match(/^image\/(jpeg|png|webp)$/)) throw new Error("Format non pris en charge");
   if (file.size > 12 * 1024 * 1024) throw new Error("La photo dépasse 12 Mo");
@@ -128,8 +180,20 @@ export default function Home() {
   const [expert, setExpert] = useState("");
   const [dataPassport, setDataPassport] = useState<DataPassport | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [listening, setListening] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [access, setAccess] = useState<AccessState>({ loading: true, mode: "preview", authenticated: false, balance: null, available: null });
+  const [showActivation, setShowActivation] = useState(false);
+  const [activationSource, setActivationSource] = useState<"etsy" | "lemon">("etsy");
+  const [activationEmail, setActivationEmail] = useState("");
+  const [orderReference, setOrderReference] = useState("");
+  const [activationError, setActivationError] = useState("");
+  const [activating, setActivating] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [savedActions, setSavedActions] = useState<SavedAction[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
@@ -139,11 +203,70 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [screen]);
 
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem("immoboost_actions") ?? "[]") as unknown;
+      if (Array.isArray(parsed)) {
+        setSavedActions(parsed.filter((item): item is SavedAction => Boolean(
+          item && typeof item === "object"
+          && typeof (item as SavedAction).id === "string"
+          && typeof (item as SavedAction).title === "string"
+          && typeof (item as SavedAction).startAt === "string"
+          && Number.isFinite(Date.parse((item as SavedAction).startAt))
+        )).slice(0, 20));
+      }
+    } catch {
+      window.localStorage.removeItem("immoboost_actions");
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("recharge") === "unavailable") {
+      setError("La recharge n’est pas encore disponible. Réessayez plus tard.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (query.get("subscription") === "unavailable") {
+      setError("L’abonnement direct n’est pas encore disponible pour cet accès.");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (query.get("access") === "required") {
+      setShowActivation(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    const pilotToken = new URLSearchParams(window.location.hash.slice(1)).get("pilot");
+    const sessionRequest = pilotToken
+      ? fetch("/api/auth/pilot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: pilotToken }),
+        }).finally(() => window.history.replaceState({}, "", window.location.pathname))
+      : fetch("/api/auth/session", { cache: "no-store" });
+    void sessionRequest
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        setAccess({
+          loading: false,
+          mode: pilotToken || data.mode === "enforced" ? "enforced" : "preview",
+          authenticated: response.ok && data.authenticated === true,
+          balance: typeof data.balance === "number" ? data.balance : null,
+          available: typeof data.available === "number" ? data.available : null,
+          canRecharge: data.canRecharge === true,
+          canSubscribe: data.canSubscribe === true,
+        });
+        if (pilotToken && response.ok) setNotice("Votre accès pilote est activé. Décrivez simplement votre première situation.");
+        if (pilotToken && !response.ok) setError(data.error || "Ce lien pilote n’est plus valide.");
+      })
+      .catch(() => active && setAccess((current) => ({ ...current, loading: false })));
+    return () => { active = false; };
+  }, []);
+
   async function prepareKit(text = situation) {
     const cleanText = text.trim();
     if (!cleanText && !image) return;
     setSituation(cleanText);
     setError("");
+    setNotice("");
     setLoadingStep(0);
     setScreen("loading");
 
@@ -154,15 +277,96 @@ export default function Home() {
         body: JSON.stringify({ question: cleanText, image: image || undefined }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Le kit n’a pas pu être préparé.");
+      if (!response.ok) {
+        if (data.code === "ACCESS_REQUIRED") setShowActivation(true);
+        if (data.code === "INSUFFICIENT_BOOSTS") setShowAccount(true);
+        throw new Error(data.error || "Le kit n’a pas pu être préparé.");
+      }
       setKit(data.kit);
       setExpert(data.expert?.name || "Expert ImmoBoost");
       setDataPassport(data.dataPassport || null);
+      if (data.dataPassport?.requestId && data.kit?.nextAction?.title && data.kit?.nextAction?.startAt) {
+        setSavedActions((current) => {
+          if (current.some((action) => action.id === data.dataPassport.requestId)) return current;
+          const next = [{ id: data.dataPassport.requestId, title: data.kit.nextAction.title, startAt: data.kit.nextAction.startAt }, ...current].slice(0, 20);
+          window.localStorage.setItem("immoboost_actions", JSON.stringify(next));
+          return next;
+        });
+      }
+      if (typeof data.dataPassport?.balanceAfter === "number") {
+        setAccess((current) => ({
+          ...current,
+          balance: data.dataPassport.balanceAfter,
+          available: typeof data.dataPassport.availableAfter === "number" ? data.dataPassport.availableAfter : data.dataPassport.balanceAfter,
+        }));
+      }
       setScreen("kit");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Une erreur est survenue.");
       setScreen("home");
+    }
+  }
+
+  async function activateAccess() {
+    setActivationError("");
+    setActivating(true);
+    try {
+      const response = await fetch("/api/auth/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: activationSource, email: activationEmail, orderReference }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "L’activation a échoué.");
+      setAccess({
+        loading: false,
+        mode: "enforced",
+        authenticated: true,
+        balance: data.balance,
+        available: data.available,
+        canRecharge: data.canRecharge === true,
+        canSubscribe: data.canSubscribe === true,
+      });
+      setShowActivation(false);
+      setActivationEmail("");
+      setOrderReference("");
+      setError("");
+    } catch (caught) {
+      setActivationError(caught instanceof Error ? caught.message : "L’activation a échoué.");
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  async function logout() {
+    setAccountBusy(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setAccess({ loading: false, mode: "enforced", authenticated: false, balance: 0, available: 0 });
+      setShowAccount(false);
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function deleteAccount() {
+    if (deleteConfirmation !== "SUPPRIMER") return;
+    setAccountBusy(true);
+    try {
+      const response = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+      if (!response.ok) throw new Error("Suppression impossible pour le moment.");
+      setAccess({ loading: false, mode: "enforced", authenticated: false, balance: 0, available: 0 });
+      setShowAccount(false);
+      reset();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Suppression impossible pour le moment.");
+    } finally {
+      setAccountBusy(false);
     }
   }
 
@@ -213,14 +417,71 @@ export default function Home() {
     setKit(null);
     setDataPassport(null);
     setError("");
+    setNotice("");
+  }
+
+  function completeSavedAction(id: string) {
+    setSavedActions((current) => {
+      const next = current.filter((action) => action.id !== id);
+      window.localStorage.setItem("immoboost_actions", JSON.stringify(next));
+      return next;
+    });
   }
 
   return (
     <main className="appShell">
       <header className="topbar">
         <button className="brand" onClick={reset} aria-label="Accueil ImmoBoost"><span className="brandMark">IB</span><span>ImmoBoost <b>AI</b></span></button>
-        <span className="market">{country.label} · FR</span>
+        <div className="accountBar">
+          {access.mode === "preview" && !access.loading && <span className="previewBadge">PREVIEW</span>}
+          {access.mode === "enforced" && access.authenticated && <button className="boostBalance" onClick={() => { setDeleteConfirmation(""); setShowAccount(true); }}><b>{access.available ?? 0}</b> Boosts</button>}
+          {access.mode === "enforced" && !access.authenticated && !access.loading && <button className="activateButton" onClick={() => setShowActivation(true)}>Activer mon accès</button>}
+          <span className="market">{country.label} · FR</span>
+        </div>
       </header>
+
+      {showActivation && (
+        <div className="activationOverlay" role="dialog" aria-modal="true" aria-labelledby="activation-title">
+          <section className="activationCard">
+            <button className="activationClose" onClick={() => setShowActivation(false)} aria-label="Fermer">×</button>
+            <span className="activationEyebrow">ACCÈS SÉCURISÉ</span>
+            <h2 id="activation-title">Activez ImmoBoost.</h2>
+            <p>Utilisez l’email et le numéro indiqués sur votre commande. Aucun mot de passe à retenir.</p>
+            <div className="sourceTabs">
+              <button className={activationSource === "etsy" ? "active" : ""} onClick={() => setActivationSource("etsy")}>Etsy</button>
+              <button className={activationSource === "lemon" ? "active" : ""} onClick={() => setActivationSource("lemon")}>ImmoBoost</button>
+            </div>
+            <label>Email de la commande<input type="email" autoComplete="email" value={activationEmail} onChange={(event) => setActivationEmail(event.target.value)} placeholder="vous@agence.be" maxLength={254} /></label>
+            <label>Numéro de commande<input value={orderReference} onChange={(event) => setOrderReference(event.target.value)} placeholder={activationSource === "etsy" ? "Ex. 1234567890" : "Référence de commande"} maxLength={128} /></label>
+            {activationError && <div className="activationError" role="alert">{activationError}</div>}
+            <button className="activationSubmit" onClick={() => void activateAccess()} disabled={activating || !activationEmail.trim() || !orderReference.trim()}>{activating ? "Vérification…" : "Ouvrir mon espace"}</button>
+            <small>Votre email et votre référence sont transformés en empreintes irréversibles avant stockage.</small>
+          </section>
+        </div>
+      )}
+
+      {showAccount && access.authenticated && (
+        <div className="activationOverlay" role="dialog" aria-modal="true" aria-labelledby="account-title">
+          <section className="activationCard accountCard">
+            <button className="activationClose" onClick={() => { setDeleteConfirmation(""); setShowAccount(false); }} aria-label="Fermer">×</button>
+            <span className="activationEyebrow">MON ACCÈS</span>
+            <h2 id="account-title">{access.available ?? 0} Boosts</h2>
+            <p>Votre solde disponible. Une mission n’est débitée qu’après livraison complète du kit.</p>
+            <div className="accountActions">
+              {access.canSubscribe && <a className="primaryAccountAction" href="/api/commerce/subscribe">Passer à l’abonnement</a>}
+              {access.canRecharge && <a className={access.canSubscribe ? "" : "primaryAccountAction"} href="/api/commerce/recharge">Ajouter des Boosts</a>}
+              <a href="/api/account/export" download>Télécharger mes données</a>
+              <button onClick={() => void logout()} disabled={accountBusy}>Fermer la session</button>
+            </div>
+            <div className="dangerZone">
+              <strong>Supprimer définitivement mon accès</strong>
+              <p>Les sessions, le portefeuille et les données du compte seront supprimés. Cette action est irréversible.</p>
+              <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder="Tapez SUPPRIMER" />
+              <button onClick={() => void deleteAccount()} disabled={accountBusy || deleteConfirmation !== "SUPPRIMER"}>Supprimer mon compte</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {screen === "home" && (
         <section className="homeScreen">
@@ -251,6 +512,21 @@ export default function Home() {
             </div>
 
             {error && <div className="errorMessage" role="alert">{error}</div>}
+            {notice && <div className="successMessage" role="status">{notice}</div>}
+
+            {savedActions.length > 0 && (
+              <section className="todayActions" aria-label="Actions à faire">
+                <div><span>AUJOURD’HUI</span><strong>Mes prochaines actions</strong></div>
+                {savedActions.slice(0, 3).map((action) => (
+                  <article key={action.id}>
+                    <time>{new Intl.DateTimeFormat("fr-BE", { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(action.startAt))}</time>
+                    <p>{action.title}</p>
+                    <button onClick={() => completeSavedAction(action.id)} aria-label={`Marquer ${action.title} comme terminé`}>✓</button>
+                  </article>
+                ))}
+                <small>Conservé uniquement sur cet appareil. Rien n’est ajouté au serveur.</small>
+              </section>
+            )}
 
             <div className="suggestions" aria-label="Suggestions">
               {suggestions.map((suggestion) => <button key={suggestion} onClick={() => void prepareKit(suggestion)}>{suggestion}<span>↗</span></button>)}
@@ -296,6 +572,7 @@ export default function Home() {
               <span className="actionWhen">{kit.nextAction.when}</span>
               <h2>{kit.nextAction.title}</h2>
               <p>{kit.nextAction.detail}</p>
+              <button className="calendarAction" onClick={() => addToCalendar(kit.nextAction)}>Ajouter à mon agenda</button>
             </aside>
 
             <article className="kitCard emailCard">
@@ -369,7 +646,8 @@ export default function Home() {
                 <div><dt>Envoyé au moteur</dt><dd>{[dataPassport.sentToAI.situation && "situation", dataPassport.sentToAI.image && "photo"].filter(Boolean).join(" + ")}</dd></div>
                 <div><dt>Conservé par ImmoBoost</dt><dd>{dataPassport.storedByImmoBoost ? "Oui" : "Non"}</dd></div>
                 <div><dt>Entraînement du modèle</dt><dd>{dataPassport.usedForModelTraining ? "Oui" : "Non"}</dd></div>
-                <div><dt>Coût prévu</dt><dd>{dataPassport.boostEstimate} Boost{dataPassport.boostEstimate > 1 ? "s" : ""}</dd></div>
+                <div><dt>Coût de la mission</dt><dd>{dataPassport.commerceMode === "preview" ? "Preview · 0 Boost" : `${dataPassport.boostsDebited} Boost${dataPassport.boostsDebited > 1 ? "s" : ""}`}</dd></div>
+                {typeof dataPassport.availableAfter === "number" && <div><dt>Solde disponible</dt><dd>{dataPassport.availableAfter} Boosts</dd></div>}
               </dl>
               <p>{dataPassport.providerSafetyRetention}</p>
               <small>{dataPassport.provider} · {dataPassport.countryPack} · Référence {dataPassport.requestId.slice(0, 8)}</small>
