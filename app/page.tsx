@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { findResources, resources, type Resource } from "../lib/catalog";
+import { resources, type Resource } from "../lib/catalog";
+import { resolveSituations, type ResolveResult } from "../lib/resolve";
 
 type View = "home" | "resource" | "detail" | "coach" | "search" | "favorites";
 type Section = "checklist" | "questions" | "documents" | "attention";
@@ -12,6 +13,8 @@ const sectionMeta: Record<Section, { title: string; icon: string; trust: string 
   documents: { title: "Supports utiles", icon: "▣", trust: "À adapter" },
   attention: { title: "À vérifier", icon: "!", trust: "Selon le dossier" },
 };
+
+const quickSearches = ["commission", "exclusivité", "prix trop haut", "offre basse", "visite", "PEB"];
 
 export default function Home() {
   const [view, setView] = useState<View>("home");
@@ -24,7 +27,7 @@ export default function Home() {
   const [copied, setCopied] = useState("");
 
   const active = resources.find((item) => item.id === activeId) ?? resources[0];
-  const results = useMemo(() => findResources(query), [query]);
+  const results = useMemo(() => resolveSituations(query), [query]);
   const favoriteResources = resources.filter((item) => favorites.includes(item.id));
   const items = active[section];
   const completed = checked[active.id]?.length ?? 0;
@@ -39,6 +42,17 @@ export default function Home() {
 
   function openResource(resource: Resource) {
     setActiveId(resource.id);
+    setCoachIndex(0);
+    setView("resource");
+  }
+
+  function openResolveResult(result: ResolveResult) {
+    setActiveId(result.resource.id);
+    if (result.kind === "situation" && result.promptIndex !== undefined) {
+      setCoachIndex(result.promptIndex);
+      setView("coach");
+      return;
+    }
     setCoachIndex(0);
     setView("resource");
   }
@@ -72,6 +86,11 @@ export default function Home() {
     setView("detail");
   }
 
+  function startQuickSearch(value: string) {
+    setQuery(value);
+    setView("search");
+  }
+
   return (
     <main className="app">
       <header className="topbar">
@@ -84,11 +103,17 @@ export default function Home() {
         <section className="screen">
           <div className="intro">
             <span className="kicker">IMMOBILIER · BELGIQUE FRANCOPHONE</span>
-            <h1>Que devez-vous<br />préparer ?</h1>
-            <p>Choisissez la situation. La méthode, les messages et les vérifications sont déjà prêts.</p>
+            <h1>Que devez-vous<br />résoudre ?</h1>
+            <p>Choisissez une préparation ou tapez deux mots. ImmoBoost ouvre directement la bonne solution.</p>
           </div>
 
-          <button className="resolveHero" onClick={() => setView("search")}>⚡ <span><strong>Résoudre une situation</strong><small>Deux mots suffisent : commission, offre, PEB, visite…</small></span><b>→</b></button>
+          <button className="resolveHero" onClick={() => setView("search")}>
+            ⚡ <span><strong>Résoudre une situation</strong><small>Commission, offre, PEB, visite…</small></span><b>→</b>
+          </button>
+
+          <div className="quickRow">
+            {quickSearches.map((item) => <button key={item} onClick={() => startQuickSearch(item)}>{item}</button>)}
+          </div>
 
           <div className="situationGrid">
             {resources.map((resource) => (
@@ -165,10 +190,19 @@ export default function Home() {
       {view === "search" && (
         <section className="screen searchScreen">
           <button className="back" onClick={() => setView("home")}>← Accueil</button>
-          <div className="detailHeader"><span className="trust">Recherche instantanée</span><h1>Que se passe-t-il ?</h1><p>Tapez un mot métier. Pas une longue question.</p></div>
+          <div className="detailHeader"><span className="trust">Resolve Engine</span><h1>Que se passe-t-il ?</h1><p>Tapez un mot métier. Une préparation ou une réponse précise s’ouvre directement.</p></div>
           <input className="searchInput" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Commission, offre, PEB, visite…" />
+          <div className="quickRow searchQuick">
+            {quickSearches.map((item) => <button key={item} onClick={() => setQuery(item)}>{item}</button>)}
+          </div>
           <div className="searchResults">
-            {results.map((resource) => <button key={resource.id} onClick={() => openResource(resource)}><span>{resource.icon}</span><div><strong>{resource.title}</strong><small>{resource.summary}</small></div><b>→</b></button>)}
+            {results.map((result) => (
+              <button key={result.id} onClick={() => openResolveResult(result)}>
+                <span>{result.kind === "situation" ? "⚡" : result.resource.icon}</span>
+                <div><strong>{result.title}</strong><small>{result.kind === "situation" ? `Coach ${result.resource.title}` : result.description}</small></div>
+                <em>{result.kind === "situation" ? "Solution" : "Préparation"}</em><b>→</b>
+              </button>
+            ))}
             {results.length === 0 && <div className="empty"><strong>Aucun résultat exact.</strong><span>Essayez : vendeur, prix, annonce, visite, offre ou email.</span></div>}
           </div>
         </section>
