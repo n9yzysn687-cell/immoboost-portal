@@ -1,30 +1,53 @@
-# ImmoBoost Portal
+# ImmoBoost AI™
 
-Le workspace intelligent des professionnels de l'immobilier.
+L'assistant intelligent qui comprend une situation immobilière et prépare immédiatement la meilleure solution.
 
-## Sprint 1
+## Version 0.6 — Fondations sécurisées
 
-Cette première version contient :
+Le parcours principal est maintenant opérationnel :
 
-- une application Next.js et TypeScript ;
-- un dashboard responsive ;
-- l'accès direct à ImmoBoost Copilot™ ;
-- les 12 Missions avec suivi de progression ;
-- les espaces Copilot et Ressources ;
-- un design premium mobile-first ;
-- une configuration prête pour Vercel.
+- une seule question d'entrée : « Que se passe-t-il aujourd'hui ? » ;
+- saisie texte, dictée vocale et ajout de photo ;
+- sélection automatique de l'expert métier ;
+- génération directe dans ImmoBoost, sans redirection ni copier-coller vers une autre IA ;
+- kit structuré : diagnostic, objectif, plan, email, SMS, script d'appel, checklist, documents et prochaine action ;
+- Growth Pack déclenché automatiquement pour les besoins marketing : annonce, Instagram, Facebook, LinkedIn, publicité, Reel, brief Canva et prompts IA ;
+- textes adaptés à chaque canal au lieu d'un même contenu dupliqué ;
+- copie individuelle ou copie du pack marketing complet en une action ;
+- recherche web limitée aux demandes réglementaires belges ;
+- historique de réponse API désactivé (`store: false`) ;
+- isolation du fournisseur IA derrière une interface remplaçable ;
+- validation d'origine, de type, de taille et de format sur chaque requête ;
+- limitation anti-abus sans conservation d'adresse IP en clair ;
+- filtrage des liens réglementaires vers une liste de domaines officiels ;
+- délais, nouvelle tentative contrôlée et erreurs sans fuite de données ;
+- passeport de données visible dans chaque kit ;
+- moteur de Boosts idempotent : réservation, débit après succès et libération après échec ;
+- pack pays belge explicite et versionné ;
+- en-têtes HTTP de sécurité et politique CSP ;
+- interface premium, responsive et mobile-first.
 
 ## Lancer le projet
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-## Déploiement
+Renseigner `OPENAI_API_KEY` dans `.env.local`. Les missions courantes utilisent `OPENAI_MODEL` et les missions complexes `OPENAI_MODEL_COMPLEX`.
 
-Importer le dépôt dans Vercel puis déployer la branche `main` après validation de la Pull Request.
+La clé reste exclusivement côté serveur. Elle ne doit jamais être préfixée par `NEXT_PUBLIC_` ni envoyée au navigateur.
 
-## Statut
+## Vérifier avant livraison
 
-Version 0.1, fondation fonctionnelle. Les contenus clients, contrôles d'accès et documents juridiques seront ajoutés dans les prochains sprints.
+```bash
+npm run typecheck
+npm test
+npm run build
+npm run security:audit
+```
+
+## Sécurité et mise en production
+
+Consulter `SECURITY.md` avant tout déploiement commercial. Le portefeuille en mémoire présent dans cette version valide les règles métier mais ne doit pas être utilisé comme stockage de production. La prochaine étape est son adaptateur transactionnel D1 avec comptes, licences et webhooks signés.
