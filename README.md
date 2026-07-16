@@ -12,7 +12,7 @@ Le parcours principal est maintenant opérationnel :
 - génération directe dans ImmoBoost, sans redirection ni copier-coller vers une autre IA ;
 - kit structuré : diagnostic, objectif, plan, email, SMS, script d'appel, checklist, documents et prochaine action ;
 - recherche web limitée aux demandes réglementaires belges ;
-- aucune conservation des réponses par l'API OpenAI (`store: false`) ;
+- historique de réponse API désactivé (`store: false`) ;
 - interface premium, responsive et mobile-first.
 
 ## Lancer le projet

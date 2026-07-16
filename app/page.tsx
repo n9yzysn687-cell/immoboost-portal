@@ -224,7 +224,7 @@ export default function Home() {
             <div className="suggestions" aria-label="Suggestions">
               {suggestions.map((suggestion) => <button key={suggestion} onClick={() => void prepareKit(suggestion)}>{suggestion}<span>↗</span></button>)}
             </div>
-            <p className="privacyNote"><span>●</span> Vos demandes ne sont pas conservées par le moteur IA.</p>
+            <p className="privacyNote"><span>●</span> Aucun historique IA n’est créé pour vos demandes.</p>
           </div>
         </section>
       )}
