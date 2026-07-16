@@ -4,5 +4,8 @@ node_modules
 .env.local
 !.env.example
 *.tsbuildinfo
+.open-next
+.wrangler
+.dev.vars
 .DS_Store
 npm-debug.log*

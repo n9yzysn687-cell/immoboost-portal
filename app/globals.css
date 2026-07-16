@@ -70,6 +70,92 @@ svg { width: 20px; height: 20px; }
   font-weight: 650;
   backdrop-filter: blur(18px);
 }
+.accountBar { display: flex; align-items: center; gap: 8px; }
+.previewBadge, .boostBalance {
+  min-height: 33px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .72);
+  color: #747783;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .8px;
+  backdrop-filter: blur(18px);
+}
+.boostBalance { color: #4c4960; letter-spacing: 0; }
+.boostBalance b { color: var(--purple); font-size: 12px; }
+.activateButton {
+  min-height: 35px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #181a23;
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.activationOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 22px;
+  display: grid;
+  place-items: center;
+  background: rgba(13, 14, 20, .38);
+  backdrop-filter: blur(18px);
+  animation: enter .25s ease;
+}
+.activationCard {
+  width: min(470px, 100%);
+  padding: 34px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 45px 120px rgba(14, 14, 25, .25);
+}
+.activationClose { width: 34px; height: 34px; position: absolute; top: 17px; right: 17px; border: 0; border-radius: 50%; background: #f1f1f4; color: #6e7079; font-size: 20px; }
+.activationEyebrow { color: var(--purple); font-size: 9px; font-weight: 900; letter-spacing: 1.5px; }
+.activationCard h2 { margin: 12px 0 8px; font-size: 34px; letter-spacing: -1.8px; }
+.activationCard > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.sourceTabs { margin: 23px 0 16px; padding: 4px; display: grid; grid-template-columns: 1fr 1fr; border-radius: 13px; background: #f1f1f4; }
+.sourceTabs button { height: 36px; border: 0; border-radius: 10px; background: transparent; color: #777985; font-size: 11px; font-weight: 750; }
+.sourceTabs button.active { background: #fff; color: var(--ink); box-shadow: 0 4px 14px rgba(20, 20, 30, .07); }
+.activationCard label { margin-top: 13px; display: grid; gap: 7px; color: #636671; font-size: 10px; font-weight: 760; }
+.activationCard input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; outline: 0; background: #fafafd; color: var(--ink); font-size: 13px; }
+.activationCard input:focus { border-color: rgba(103, 87, 232, .45); box-shadow: 0 0 0 4px rgba(103, 87, 232, .07); }
+.activationSubmit { width: 100%; height: 50px; margin-top: 18px; border: 0; border-radius: 15px; color: #fff; background: linear-gradient(135deg, var(--purple), #8174ef); font-size: 12px; font-weight: 820; box-shadow: 0 13px 28px rgba(103, 87, 232, .22); }
+.activationSubmit:disabled { opacity: .45; box-shadow: none; cursor: not-allowed; }
+.activationCard > small { margin-top: 14px; display: block; color: #9698a1; font-size: 9px; line-height: 1.5; text-align: center; }
+.activationError { margin-top: 13px; padding: 10px 12px; border-radius: 11px; background: #fff0f2; color: #a63345; font-size: 10px; }
+.accountActions { margin-top: 23px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.accountActions a, .accountActions button { height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 13px; background: #f8f8fa; color: #555865; font-size: 10px; font-weight: 760; text-decoration: none; }
+.accountActions .primaryAccountAction { grid-column: 1 / -1; color: white; border-color: #15161a; background: #15161a; }
+.dangerZone { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+.dangerZone strong { color: #a63345; font-size: 11px; }
+.dangerZone p { margin: 6px 0 11px; color: #8b7075; font-size: 9px; line-height: 1.5; }
+.dangerZone input { height: 42px; }
+.dangerZone button { width: 100%; height: 42px; margin-top: 8px; border: 0; border-radius: 12px; background: #b43d4f; color: #fff; font-size: 10px; font-weight: 800; }
+.dangerZone button:disabled { opacity: .35; cursor: not-allowed; }
+
+.pilotPage { min-height: 100vh; padding: 30px 18px; display: grid; place-items: center; background: radial-gradient(circle at top, #efedff, #fafafa 58%); }
+.pilotCard { width: min(520px, 100%); padding: 34px; border: 1px solid rgba(255,255,255,.9); border-radius: 30px; background: rgba(255,255,255,.92); box-shadow: var(--shadow); }
+.pilotCard > span { color: var(--purple); font-size: 9px; font-weight: 900; letter-spacing: 1.5px; }
+.pilotCard h1 { margin: 12px 0 8px; font-size: 34px; letter-spacing: -1.8px; }
+.pilotCard > p { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.pilotCard label { display: grid; gap: 7px; color: #636671; font-size: 10px; font-weight: 760; }
+.pilotCard input { width: 100%; height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 13px; outline: 0; background: #fafafd; }
+.pilotFields { margin: 13px 0 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pilotCard > button, .pilotResult button { width: 100%; height: 48px; border: 0; border-radius: 14px; color: white; background: var(--purple); font-size: 11px; font-weight: 820; }
+.pilotCard > button:disabled { opacity: .4; }
+.pilotResult { margin-top: 16px; padding: 10px; display: grid; grid-template-columns: 1fr 90px; gap: 8px; border-radius: 16px; background: var(--green-pale); }
+.pilotResult button { height: 46px; background: var(--green); }
+.pilotCard > .pilotRevoke { height: 40px; margin-top: 9px; color: #a63345; border: 1px solid #f2d7dc; background: #fff5f6; }
 
 .homeScreen {
   min-height: calc(100vh - 76px);
@@ -203,6 +289,16 @@ svg { width: 20px; height: 20px; }
 .privacyNote { margin: 28px 0 0; color: #9a9ca5; font-size: 10px; }
 .privacyNote span { margin-right: 5px; color: #74a68f; font-size: 7px; vertical-align: 1px; }
 .errorMessage { max-width: 780px; margin: 13px auto 0; padding: 11px 14px; border-radius: 13px; background: #fff0f2; color: #a63345; font-size: 12px; text-align: left; }
+.successMessage { max-width: 780px; margin: 13px auto 0; padding: 11px 14px; border-radius: 13px; background: var(--green-pale); color: var(--green); font-size: 12px; text-align: left; }
+.todayActions { max-width: 780px; margin: 20px auto 0; padding: 16px; display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,.7); text-align: left; backdrop-filter: blur(18px); }
+.todayActions > div { margin-bottom: 2px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.todayActions > div span { color: var(--purple); font-size: 8px; font-weight: 900; letter-spacing: 1.4px; }
+.todayActions > div strong { font-size: 12px; }
+.todayActions article { min-height: 43px; padding: 7px 9px 7px 11px; display: grid; grid-template-columns: 84px 1fr 30px; align-items: center; gap: 8px; border-radius: 13px; background: #f6f6f9; }
+.todayActions time { color: #858895; font-size: 9px; text-transform: capitalize; }
+.todayActions p { margin: 0; color: #333640; font-size: 11px; font-weight: 650; }
+.todayActions article button { width: 29px; height: 29px; border: 0; border-radius: 10px; color: var(--green); background: var(--green-pale); }
+.todayActions > small { margin: 3px 2px 0; color: #9a9ca5; font-size: 8px; }
 .glow { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(4px); }
 .glowOne { width: 430px; height: 430px; left: -220px; top: 4%; background: radial-gradient(circle, rgba(222, 217, 255, .72), transparent 68%); }
 .glowTwo { width: 500px; height: 500px; right: -260px; bottom: 0; background: radial-gradient(circle, rgba(218, 232, 255, .65), transparent 68%); }
@@ -259,6 +355,7 @@ svg { width: 20px; height: 20px; }
 .actionWhen { width: fit-content; margin: 28px 0 13px; padding: 7px 9px; display: block; border: 1px solid rgba(255, 255, 255, .12); border-radius: 999px; background: rgba(255, 255, 255, .08); color: #d9d5ff; font-size: 10px; font-weight: 750; }
 .nextActionCard h2 { max-width: 300px; font-size: 28px; line-height: 1.08; letter-spacing: -1.2px; }
 .nextActionCard p { position: relative; z-index: 1; color: #c9cad3; font-size: 13px; line-height: 1.6; }
+.calendarAction { min-height: 42px; padding: 0 15px; position: relative; z-index: 1; border: 1px solid rgba(255,255,255,.18); border-radius: 13px; color: white; background: rgba(255,255,255,.11); font-size: 10px; font-weight: 800; backdrop-filter: blur(12px); }
 .emailCard, .callCard { grid-column: 1 / -1; }
 .messageBox { margin-top: 22px; padding: 22px; border-radius: 17px; background: #f6f6f8; }
 .messageBox strong { font-size: 12px; }
@@ -350,6 +447,10 @@ svg { width: 20px; height: 20px; }
 @media (max-width: 620px) {
   .topbar { height: 64px; padding: 0 15px; }
   .brandMark { width: 36px; height: 36px; border-radius: 12px; }
+  .brand > span:last-child { display: none; }
+  .market { display: none; }
+  .activationOverlay { padding: 10px; align-items: end; }
+  .activationCard { padding: 28px 20px 24px; border-radius: 26px 26px 18px 18px; }
   .homeScreen { min-height: calc(100vh - 64px); padding: 52px 13px 60px; }
   .homeInner h1 { margin-top: 17px; font-size: 52px; letter-spacing: -3.5px; }
   .homeLead { font-size: 14px; line-height: 1.55; }

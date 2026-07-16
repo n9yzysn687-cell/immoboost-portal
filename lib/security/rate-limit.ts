@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 type Bucket = { count: number; resetAt: number };
 
@@ -15,8 +15,11 @@ export type RateLimitResult = {
   retryAfterSeconds: number;
 };
 
-export function hashRateLimitKey(value: string) {
-  return createHash("sha256").update(value).digest("hex").slice(0, 32);
+export function hashRateLimitKey(value: string, secret = "") {
+  const digest = secret
+    ? createHmac("sha256", secret).update(value).digest("hex")
+    : createHash("sha256").update(value).digest("hex");
+  return digest.slice(0, 32);
 }
 
 export function consumeRateLimit(

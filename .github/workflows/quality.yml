@@ -20,10 +20,18 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Test secure commerce rules
+        run: npm test
 
       - name: Type check
         run: npm run typecheck
 
-      - name: Build
-        run: npm run build
+      - name: Dependency security gate
+        run: npm run security:audit
+
+      - name: Build Cloudflare production worker
+        run: npm run build:cloudflare
+        env:
+          WRANGLER_SEND_METRICS: "false"

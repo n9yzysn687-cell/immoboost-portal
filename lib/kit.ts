@@ -24,7 +24,7 @@ export type Kit = {
   checklist: string[];
   documents: string[];
   marketingPack: MarketingPack;
-  nextAction: { title: string; detail: string; when: string };
+  nextAction: { title: string; detail: string; when: string; startAt: string };
   warning: string;
   sources: Array<{ title: string; url: string }>;
 };
@@ -61,7 +61,8 @@ export function isKit(value: unknown): value is Kit {
   if (!record(value.callScript) || !textRecord(value.callScript, ["opening", "closing"]) || !strings(value.callScript.questions) || !strings(value.callScript.objections)) return false;
   if (!strings(value.checklist) || !strings(value.documents)) return false;
   if (!isMarketingPack(value.marketingPack)) return false;
-  if (!textRecord(value.nextAction, ["title", "detail", "when"])) return false;
+  if (!textRecord(value.nextAction, ["title", "detail", "when", "startAt"])) return false;
+  if (!Number.isFinite(Date.parse(String((value.nextAction as Record<string, unknown>).startAt)))) return false;
   return Array.isArray(value.sources) && value.sources.every((source) => textRecord(source, ["title", "url"]));
 }
 

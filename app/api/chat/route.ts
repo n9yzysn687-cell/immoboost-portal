@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { routeQuestion } from "../../../lib/agents";
 import { AIProviderError, OpenAIResponsesProvider } from "../../../lib/ai/provider";
 import { estimateMissionBoosts } from "../../../lib/billing/boosts";
+import { commerceMode, commerceRepositoryFromEnv } from "../../../lib/commerce/config";
+import { CommerceRepositoryError } from "../../../lib/commerce/repository";
+import type { CommerceRepository } from "../../../lib/commerce/repository";
+import { sessionFromRequest } from "../../../lib/commerce/session";
 import { getCountryPack } from "../../../lib/countries";
 import { isKit, secureKitSources } from "../../../lib/kit";
 import { assertSameOrigin, getClientAddress, normalizeUserText, publicErrorResponse, readJsonBody } from "../../../lib/security/http";
@@ -150,11 +154,12 @@ const kitSchema = {
     nextAction: {
       type: "object",
       additionalProperties: false,
-      required: ["title", "detail", "when"],
+      required: ["title", "detail", "when", "startAt"],
       properties: {
         title: { type: "string" },
         detail: { type: "string" },
         when: { type: "string" },
+        startAt: { type: "string" },
       },
     },
     warning: { type: "string" },
@@ -184,6 +189,8 @@ function isMarketingRequest(question: string) {
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+  let reservedRepository: CommerceRepository | null = null;
+  let reservedOperationId = "";
 
   function json(body: Record<string, unknown>, status = 200, headers: Record<string, string> = {}) {
     return NextResponse.json(body, {
@@ -199,16 +206,26 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
 
-    const rateLimit = consumeRateLimit(hashRateLimitKey(getClientAddress(request)), {
-      limit: RATE_LIMIT,
-      windowMs: RATE_WINDOW_MS,
-    });
+    const mode = commerceMode();
+    const commerce = commerceRepositoryFromEnv();
+    if (mode === "enforced" && !commerce) {
+      return json({ error: "Le coffre sécurisé ImmoBoost n’est pas configuré.", code: "COMMERCE_NOT_CONFIGURED" }, 503);
+    }
+    const rateLimitKey = hashRateLimitKey(getClientAddress(request), process.env.AUTH_PEPPER);
+    const rateLimit = commerce
+      ? await commerce.consumeRateLimit(`chat:${rateLimitKey}`, RATE_LIMIT, RATE_WINDOW_MS)
+      : consumeRateLimit(rateLimitKey, { limit: RATE_LIMIT, windowMs: RATE_WINDOW_MS });
     if (!rateLimit.allowed) {
       return json(
         { error: "Trop de demandes ont été envoyées. Réessayez dans quelques minutes.", code: "RATE_LIMITED" },
         429,
         { "Retry-After": String(rateLimit.retryAfterSeconds) },
       );
+    }
+
+    const session = mode === "enforced" && commerce ? await sessionFromRequest(request, commerce) : null;
+    if (mode === "enforced" && !session) {
+      return json({ error: "Activez votre accès ImmoBoost pour préparer ce kit.", code: "ACCESS_REQUIRED" }, 401);
     }
 
     const body = await readJsonBody(request, MAX_BODY_LENGTH);
@@ -233,6 +250,11 @@ export async function POST(request: Request) {
     const needsOfficialSources = isRegulatoryRequest(question);
     const needsMarketingPack = isMarketingRequest(question);
     const boostEstimate = estimateMissionBoosts({ hasImage: Boolean(image), needsOfficialSources });
+    if (mode === "enforced" && commerce && session) {
+      await commerce.reserveMission(session.accountId, requestId, boostEstimate);
+      reservedRepository = commerce;
+      reservedOperationId = requestId;
+    }
     const model = needsOfficialSources || image
       ? process.env.OPENAI_MODEL_COMPLEX || "gpt-5.6-terra"
       : process.env.OPENAI_MODEL || "gpt-5.6-luna";
@@ -243,6 +265,7 @@ export async function POST(request: Request) {
       },
     ];
     if (image) content.push({ type: "input_image", image_url: image, detail: "high" });
+    const currentTime = new Date().toISOString();
 
     const payload: Record<string, unknown> = {
       reasoning: { effort: "low" },
@@ -267,6 +290,7 @@ Règles de production :
 - Quand marketingPack est actif, adapte chaque canal : Instagram visuel et humain, Facebook local et conversationnel, LinkedIn professionnel. Ne répète jamais le même texte mot pour mot.
 - Le prompt ChatGPT doit transformer les faits déjà fournis en une mission experte autonome. Le prompt d'image doit interdire l'invention d'éléments absents du bien.
 - La prochaine action doit être unique, concrète et datée par rapport à maintenant.
+- Heure actuelle : ${currentTime}. nextAction.startAt doit être une date ISO 8601 future réaliste pour cette action, afin de l'ajouter directement à l'agenda.
 - Pour tout sujet juridique, réglementaire, PEB, urbanisme, fiscal ou régional : distingue information générale et validation professionnelle, utilise uniquement des sources officielles belges actuelles et place leurs URL dans sources.
 - Si aucune vérification réglementaire n'est nécessaire, sources doit être un tableau vide.
 - warning doit être vide sauf si une information doit être vérifiée, si un risque existe ou si un professionnel compétent doit valider un point.
@@ -297,6 +321,38 @@ Règles de production :
     if (!isKit(kit)) return json({ error: "Le kit reçu est incomplet. Réessayez." }, 502);
 
     const securedKit = secureKitSources(kit, country, needsOfficialSources);
+    let balanceAfter = session?.balance ?? null;
+    let availableAfter = session?.available ?? null;
+    let boostsDebited = 0;
+    let billingStatus: "preview" | "settled" | "released" | "pending" = "preview";
+    if (reservedRepository) {
+      const billingRepository = reservedRepository;
+      try {
+        const settlement = await billingRepository.settleMission(requestId);
+        balanceAfter = settlement.balance;
+        availableAfter = settlement.balance - settlement.reserved;
+        boostsDebited = boostEstimate;
+        billingStatus = "settled";
+        reservedRepository = null;
+        reservedOperationId = "";
+      } catch {
+        const release = await billingRepository.releaseMission(requestId).catch(() => null);
+        if (release?.status === "settled") {
+          balanceAfter = release.balance;
+          availableAfter = release.balance - release.reserved;
+          boostsDebited = boostEstimate;
+          billingStatus = "settled";
+        } else if (release?.status === "released") {
+          balanceAfter = release.balance;
+          availableAfter = release.balance - release.reserved;
+          billingStatus = "released";
+        } else {
+          billingStatus = "pending";
+        }
+        reservedRepository = null;
+        reservedOperationId = "";
+      }
+    }
     const dataPassport = {
       requestId,
       countryPack: country.version,
@@ -307,6 +363,11 @@ Règles de production :
       usedForModelTraining: false,
       providerSafetyRetention: "Jusqu’à 30 jours pour la prévention des abus, sauf régime de rétention spécifique.",
       boostEstimate,
+      boostsDebited,
+      balanceAfter,
+      availableAfter,
+      commerceMode: mode,
+      billingStatus,
     };
 
     return json({
@@ -315,6 +376,13 @@ Règles de production :
       dataPassport,
     });
   } catch (error) {
+    if (error instanceof CommerceRepositoryError) {
+      if (error.code === "INSUFFICIENT_BOOSTS") {
+        return json({ error: "Votre solde de Boosts est insuffisant pour cette mission.", code: "INSUFFICIENT_BOOSTS" }, 402);
+      }
+      console.error("ImmoBoost commerce failure", { requestId, code: error.code });
+      return json({ error: "Le coffre sécurisé est momentanément indisponible. Aucun Boost ne sera débité." }, 503);
+    }
     if (error instanceof AIProviderError) {
       console.error("ImmoBoost provider failure", { requestId, kind: error.kind, status: error.status });
       if (error.kind === "timeout") return json({ error: "La préparation prend trop de temps. Aucun Boost ne sera débité." }, 504);
@@ -328,5 +396,9 @@ Règles de production :
       error: error instanceof Error ? error.name : "UnknownError",
     });
     return json({ error: publicError.message }, publicError.status);
+  } finally {
+    if (reservedRepository && reservedOperationId) {
+      await reservedRepository.releaseMission(reservedOperationId).catch(() => undefined);
+    }
   }
 }
