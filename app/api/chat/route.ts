@@ -21,6 +21,7 @@ const kitSchema = {
     "callScript",
     "checklist",
     "documents",
+    "marketingPack",
     "nextAction",
     "warning",
     "sources",
@@ -67,6 +68,75 @@ const kitSchema = {
     },
     checklist: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
     documents: { type: "array", maxItems: 6, items: { type: "string" } },
+    marketingPack: {
+      type: "object",
+      additionalProperties: false,
+      required: ["enabled", "angle", "listing", "social", "advertising", "reel", "visual", "aiPrompts", "hashtags"],
+      properties: {
+        enabled: { type: "boolean" },
+        angle: { type: "string" },
+        listing: {
+          type: "object",
+          additionalProperties: false,
+          required: ["headline", "body"],
+          properties: {
+            headline: { type: "string" },
+            body: { type: "string" },
+          },
+        },
+        social: {
+          type: "object",
+          additionalProperties: false,
+          required: ["instagram", "facebook", "linkedin"],
+          properties: {
+            instagram: { type: "string" },
+            facebook: { type: "string" },
+            linkedin: { type: "string" },
+          },
+        },
+        advertising: {
+          type: "object",
+          additionalProperties: false,
+          required: ["headline", "primaryText", "cta", "audience"],
+          properties: {
+            headline: { type: "string" },
+            primaryText: { type: "string" },
+            cta: { type: "string" },
+            audience: { type: "string" },
+          },
+        },
+        reel: {
+          type: "object",
+          additionalProperties: false,
+          required: ["hook", "shotList", "voiceover", "caption"],
+          properties: {
+            hook: { type: "string" },
+            shotList: { type: "array", maxItems: 6, items: { type: "string" } },
+            voiceover: { type: "string" },
+            caption: { type: "string" },
+          },
+        },
+        visual: {
+          type: "object",
+          additionalProperties: false,
+          required: ["canvaBrief", "imagePrompt"],
+          properties: {
+            canvaBrief: { type: "string" },
+            imagePrompt: { type: "string" },
+          },
+        },
+        aiPrompts: {
+          type: "object",
+          additionalProperties: false,
+          required: ["chatgpt", "imageGenerator"],
+          properties: {
+            chatgpt: { type: "string" },
+            imageGenerator: { type: "string" },
+          },
+        },
+        hashtags: { type: "array", maxItems: 12, items: { type: "string" } },
+      },
+    },
     nextAction: {
       type: "object",
       additionalProperties: false,
@@ -116,6 +186,10 @@ function isRegulatoryRequest(question: string) {
   return /\b(peb|urbanisme|permis|bail|préavis|preavis|indexation|copropriété|copropriete|fiscal|loi|légal|legal|réglementation|reglementation|compromis|notaire)\b/i.test(question);
 }
 
+function isMarketingRequest(question: string) {
+  return /\b(annonce|immoweb|publication|publier|publicité|publicite|campagne|marketing|visibilité|visibilite|instagram|facebook|linkedin|tiktok|reel|story|carrousel|flyer|canva|contenu|réseaux|reseaux|photo|photos|visuel)\b/i.test(question);
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as { question?: unknown; image?: unknown };
@@ -140,6 +214,7 @@ export async function POST(request: Request) {
 
     const expert = routeQuestion(question || "Analyse cette photo immobilière");
     const needsOfficialSources = isRegulatoryRequest(question);
+    const needsMarketingPack = isMarketingRequest(question);
     const content: Array<Record<string, string>> = [
       {
         type: "input_text",
@@ -152,7 +227,7 @@ export async function POST(request: Request) {
       model: process.env.OPENAI_MODEL || "gpt-5.6-terra",
       store: false,
       reasoning: { effort: "low" },
-      max_output_tokens: 3_200,
+      max_output_tokens: needsMarketingPack ? 5_600 : 3_600,
       instructions: `Tu es le Mission Brain d'ImmoBoost AI™, assistant opérationnel pour agents immobiliers en Belgique.
 
 Expert principal sélectionné : ${expert.name}. Domaine : ${expert.scope}.
@@ -166,6 +241,10 @@ Règles de production :
 - Les emails, SMS et scripts doivent être prêts à l'emploi sans champs entre crochets inutiles.
 - Le plan doit être bref, priorisé et exécutable.
 - Les documents sont les pièces à réunir ou produire, jamais des documents prétendument joints.
+- marketingPack regroupe l'équivalent des packs vendus séparément : annonce, publications Instagram/Facebook/LinkedIn, publicité, Reel, brief Canva et prompts IA.
+- marketingPack.enabled doit être ${needsMarketingPack ? "true : produis tous les éléments pertinents avec un angle commun, sans doublons et prêts à publier" : "false : conserve tous ses textes et tableaux vides afin de ne pas ajouter de contenu inutile"}.
+- Quand marketingPack est actif, adapte chaque canal : Instagram visuel et humain, Facebook local et conversationnel, LinkedIn professionnel. Ne répète jamais le même texte mot pour mot.
+- Le prompt ChatGPT doit transformer les faits déjà fournis en une mission experte autonome. Le prompt d'image doit interdire l'invention d'éléments absents du bien.
 - La prochaine action doit être unique, concrète et datée par rapport à maintenant.
 - Pour tout sujet juridique, réglementaire, PEB, urbanisme, fiscal ou régional : distingue information générale et validation professionnelle, utilise uniquement des sources officielles belges actuelles et place leurs URL dans sources.
 - Si aucune vérification réglementaire n'est nécessaire, sources doit être un tableau vide.

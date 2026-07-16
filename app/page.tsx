@@ -2,6 +2,18 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
+type MarketingPack = {
+  enabled: boolean;
+  angle: string;
+  listing: { headline: string; body: string };
+  social: { instagram: string; facebook: string; linkedin: string };
+  advertising: { headline: string; primaryText: string; cta: string; audience: string };
+  reel: { hook: string; shotList: string[]; voiceover: string; caption: string };
+  visual: { canvaBrief: string; imagePrompt: string };
+  aiPrompts: { chatgpt: string; imageGenerator: string };
+  hashtags: string[];
+};
+
 type Kit = {
   title: string;
   diagnostic: string;
@@ -13,6 +25,7 @@ type Kit = {
   callScript: { opening: string; questions: string[]; objections: string[]; closing: string };
   checklist: string[];
   documents: string[];
+  marketingPack: MarketingPack;
   nextAction: { title: string; detail: string; when: string };
   warning: string;
   sources: Array<{ title: string; url: string }>;
@@ -47,6 +60,8 @@ const suggestions = [
   "J’ai une visite dans une heure",
   "Un acheteur fait une offre trop basse",
   "Mon annonce ne génère aucun contact",
+  "Crée ma semaine de publications immobilières",
+  "Prépare une publicité Facebook pour mon bien",
 ];
 
 const loadingSteps = ["Compréhension de la situation", "Diagnostic", "Sélection des experts", "Composition du kit"];
@@ -73,6 +88,33 @@ function CopyButton({ value, label = "Copier" }: { value: string; label?: string
   }
 
   return <button className="copyButton" onClick={copy}>{copied ? <Icon name="check" /> : <Icon name="copy" />}<span>{copied ? "Copié" : label}</span></button>;
+}
+
+function ContentTile({ label, title, value, className = "" }: { label: string; title: string; value: string; className?: string }) {
+  if (!value.trim()) return null;
+  return (
+    <article className={`contentTile ${className}`.trim()}>
+      <div><small>{label}</small><h3>{title}</h3></div>
+      <p>{value}</p>
+      <CopyButton value={value} />
+    </article>
+  );
+}
+
+function marketingPackAsText(pack: MarketingPack) {
+  return [
+    `ANGLE\n${pack.angle}`,
+    `ANNONCE\n${pack.listing.headline}\n${pack.listing.body}`,
+    `INSTAGRAM\n${pack.social.instagram}`,
+    `FACEBOOK\n${pack.social.facebook}`,
+    `LINKEDIN\n${pack.social.linkedin}`,
+    `PUBLICITÉ\n${pack.advertising.headline}\n${pack.advertising.primaryText}\nCTA : ${pack.advertising.cta}\nAudience : ${pack.advertising.audience}`,
+    `REEL\nAccroche : ${pack.reel.hook}\nPlans :\n${pack.reel.shotList.map((item, index) => `${index + 1}. ${item}`).join("\n")}\nVoix off : ${pack.reel.voiceover}\nLégende : ${pack.reel.caption}`,
+    `BRIEF CANVA\n${pack.visual.canvaBrief}`,
+    `PROMPT CHATGPT\n${pack.aiPrompts.chatgpt}`,
+    `PROMPT IMAGE\n${pack.aiPrompts.imageGenerator || pack.visual.imagePrompt}`,
+    `HASHTAGS\n${pack.hashtags.join(" ")}`,
+  ].filter((section) => section.replace(/^[^\n]+\n/, "").trim()).join("\n\n");
 }
 
 async function compressImage(file: File) {
@@ -284,13 +326,47 @@ export default function Home() {
               <div className="scriptBlock closing"><label>Conclusion</label><p>{kit.callScript.closing}</p></div>
             </article>
 
+            {kit.marketingPack.enabled && (
+              <article className="kitCard marketingCard">
+                <div className="cardHeading marketingHeading"><span className="cardNumber">05</span><div><small>GROWTH PACK</small><h2>Votre campagne complète</h2></div><CopyButton value={marketingPackAsText(kit.marketingPack)} label="Copier tout" /></div>
+                <div className="marketingAngle"><span>ANGLE CENTRAL</span><strong>{kit.marketingPack.angle}</strong></div>
+
+                {(kit.marketingPack.listing.headline || kit.marketingPack.listing.body) && (
+                  <section className="listingContent">
+                    <div className="contentSectionTitle"><small>ANNONCE IMMOBILIÈRE</small><h3>{kit.marketingPack.listing.headline}</h3><CopyButton value={`${kit.marketingPack.listing.headline}\n\n${kit.marketingPack.listing.body}`} /></div>
+                    <p>{kit.marketingPack.listing.body}</p>
+                  </section>
+                )}
+
+                <div className="marketingGroupTitle"><span>PUBLICATIONS</span><p>Chaque réseau reçoit un texte adapté à son audience.</p></div>
+                <div className="contentTiles socialTiles">
+                  <ContentTile label="INSTAGRAM" title="Publication visuelle" value={`${kit.marketingPack.social.instagram}\n\n${kit.marketingPack.hashtags.join(" ")}`} />
+                  <ContentTile label="FACEBOOK" title="Publication locale" value={kit.marketingPack.social.facebook} />
+                  <ContentTile label="LINKEDIN" title="Publication expertise" value={kit.marketingPack.social.linkedin} />
+                </div>
+
+                <div className="marketingGroupTitle"><span>ACQUISITION</span><p>Une publicité et un Reel structurés pour générer l’action.</p></div>
+                <div className="contentTiles acquisitionTiles">
+                  <ContentTile label="PUBLICITÉ" title={kit.marketingPack.advertising.headline || "Campagne sponsorisée"} value={`${kit.marketingPack.advertising.primaryText}\n\nCTA : ${kit.marketingPack.advertising.cta}\nAudience : ${kit.marketingPack.advertising.audience}`} className="accentTile" />
+                  <ContentTile label="SCRIPT REEL" title={kit.marketingPack.reel.hook || "Vidéo courte"} value={`${kit.marketingPack.reel.shotList.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\nVoix off : ${kit.marketingPack.reel.voiceover}\n\nLégende : ${kit.marketingPack.reel.caption}`} />
+                </div>
+
+                <div className="marketingGroupTitle"><span>STUDIO CRÉATIF</span><p>Les instructions prêtes pour Canva, ChatGPT ou votre générateur d’images.</p></div>
+                <div className="contentTiles creativeTiles">
+                  <ContentTile label="CANVA" title="Brief visuel" value={kit.marketingPack.visual.canvaBrief} />
+                  <ContentTile label="CHATGPT / CLAUDE / GEMINI" title="Prompt expert" value={kit.marketingPack.aiPrompts.chatgpt} />
+                  <ContentTile label="GÉNÉRATEUR D’IMAGES" title="Prompt visuel" value={kit.marketingPack.aiPrompts.imageGenerator || kit.marketingPack.visual.imagePrompt} />
+                </div>
+              </article>
+            )}
+
             <article className="kitCard checklistCard">
-              <div className="cardHeading"><span className="cardNumber">05</span><div><small>CHECKLIST</small><h2>Avant d’agir</h2></div></div>
+              <div className="cardHeading"><span className="cardNumber">{kit.marketingPack.enabled ? "06" : "05"}</span><div><small>CHECKLIST</small><h2>Avant d’agir</h2></div></div>
               <ul className="checkList">{kit.checklist.map((item) => <li key={item}><span><Icon name="check" /></span>{item}</li>)}</ul>
             </article>
 
             <article className="kitCard documentsCard">
-              <div className="cardHeading"><span className="cardNumber">06</span><div><small>DOCUMENTS</small><h2>À réunir</h2></div></div>
+              <div className="cardHeading"><span className="cardNumber">{kit.marketingPack.enabled ? "07" : "06"}</span><div><small>DOCUMENTS</small><h2>À réunir</h2></div></div>
               {kit.documents.length ? <div className="documentList">{kit.documents.map((item) => <div key={item}><span>DOC</span><p>{item}</p></div>)}</div> : <p className="emptyState">Aucun document nécessaire pour cette action.</p>}
             </article>
           </div>
