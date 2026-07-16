@@ -1,124 +1,188 @@
 import { NextResponse } from "next/server";
+import { routeQuestion } from "../../../lib/agents";
 
 export const runtime = "nodejs";
 
-type AgentId = "communication" | "prospection" | "annonce" | "photos" | "vendeur" | "visite" | "offre" | "reglementation";
+const MAX_QUESTION_LENGTH = 5_000;
+const MAX_IMAGE_LENGTH = 8_000_000;
+const SUPPORTED_IMAGE = /^data:image\/(jpeg|png|webp);base64,/;
 
-const agents: Record<AgentId, { name: string; icon: string; instructions: string; official?: boolean }> = {
-  communication: {
-    name: "Agent Communication",
-    icon: "✉️",
-    instructions: "Rédige des emails, SMS et messages WhatsApp professionnels, humains et directement copiables. Demande uniquement les informations indispensables. Propose une version courte par défaut.",
+const kitSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "title",
+    "diagnostic",
+    "objective",
+    "urgency",
+    "plan",
+    "email",
+    "sms",
+    "callScript",
+    "checklist",
+    "documents",
+    "nextAction",
+    "warning",
+    "sources",
+  ],
+  properties: {
+    title: { type: "string" },
+    diagnostic: { type: "string" },
+    objective: { type: "string" },
+    urgency: { type: "string", enum: ["maintenant", "aujourd'hui", "cette semaine"] },
+    plan: {
+      type: "array",
+      minItems: 3,
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "detail"],
+        properties: {
+          title: { type: "string" },
+          detail: { type: "string" },
+        },
+      },
+    },
+    email: {
+      type: "object",
+      additionalProperties: false,
+      required: ["subject", "body"],
+      properties: {
+        subject: { type: "string" },
+        body: { type: "string" },
+      },
+    },
+    sms: { type: "string" },
+    callScript: {
+      type: "object",
+      additionalProperties: false,
+      required: ["opening", "questions", "objections", "closing"],
+      properties: {
+        opening: { type: "string" },
+        questions: { type: "array", minItems: 2, maxItems: 5, items: { type: "string" } },
+        objections: { type: "array", minItems: 1, maxItems: 4, items: { type: "string" } },
+        closing: { type: "string" },
+      },
+    },
+    checklist: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
+    documents: { type: "array", maxItems: 6, items: { type: "string" } },
+    nextAction: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title", "detail", "when"],
+      properties: {
+        title: { type: "string" },
+        detail: { type: "string" },
+        when: { type: "string" },
+      },
+    },
+    warning: { type: "string" },
+    sources: {
+      type: "array",
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "url"],
+        properties: {
+          title: { type: "string" },
+          url: { type: "string" },
+        },
+      },
+    },
   },
-  prospection: {
-    name: "Agent Prospection",
-    icon: "🎯",
-    instructions: "Aide un agent immobilier belge à contacter, qualifier et relancer des prospects. Produis scripts d'appel, messages et plans de suivi concrets, sans promesse trompeuse.",
-  },
-  annonce: {
-    name: "Agent Annonce",
-    icon: "🏠",
-    instructions: "Transforme les caractéristiques d'un bien en annonce immobilière claire et attractive. N'invente aucune caractéristique. Donne un titre, un texte principal, les points forts et une version courte pour réseaux sociaux.",
-  },
-  photos: {
-    name: "Agent Photos",
-    icon: "📸",
-    instructions: "Conseille sur l'ordre, la sélection et l'amélioration de photos immobilières. Sans images jointes, donne une checklist précise et demande les photos nécessaires. Ne prétends jamais avoir vu une image absente.",
-  },
-  vendeur: {
-    name: "Agent Vendeur",
-    icon: "🤝",
-    instructions: "Aide à préparer un rendez-vous vendeur, répondre aux objections, expliquer le mandat, l'exclusivité et les honoraires. Reste éthique, non agressif et orienté confiance.",
-  },
-  visite: {
-    name: "Agent Visite",
-    icon: "🔑",
-    instructions: "Prépare les visites, questions, arguments, suivi après visite et réponses aux hésitations. Donne une action immédiate, puis un message de suivi copiable.",
-  },
-  offre: {
-    name: "Agent Offre & Négociation",
-    icon: "💶",
-    instructions: "Aide à communiquer une offre, préparer une contre-proposition et organiser la négociation. Ne donne pas d'avis juridique définitif et signale les clauses ou délais à vérifier.",
-  },
-  reglementation: {
-    name: "Agent Réglementation Belgique",
-    icon: "⚖️",
-    official: true,
-    instructions: "Répond uniquement pour la Belgique. Pour toute règle, obligation, délai, PEB, urbanisme, bail, fiscalité ou document légal, recherche des sources officielles belges actuelles. Cite les sources utilisées. Si les sources ne suffisent pas, dis exactement ce qui reste à confirmer. Ne mélange jamais les règles françaises, suisses ou luxembourgeoises.",
-  },
-};
+} as const;
 
-function normalize(value: string) {
-  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
+function extractOutputText(data: unknown) {
+  if (!data || typeof data !== "object") return "";
+  const response = data as { output_text?: unknown; output?: unknown };
+  if (typeof response.output_text === "string") return response.output_text;
+  if (!Array.isArray(response.output)) return "";
 
-function routeAgent(question: string): AgentId {
-  const q = normalize(question);
-  if (/(peb|urbanisme|permis|bail|preavis|indexation|fiscal|loi|legal|reglement|compromis|notaire)/.test(q)) return "reglementation";
-  if (/(photo|image|visuel|luminosite|ordre des photos)/.test(q)) return "photos";
-  if (/(annonce|immoweb|description du bien|titre de vente|publication)/.test(q)) return "annonce";
-  if (/(prospect|prospection|appel a froid|porte a porte|lead|relance prospect)/.test(q)) return "prospection";
-  if (/(vendeur|mandat|exclusivite|honoraires|commission|estimation)/.test(q)) return "vendeur";
-  if (/(visite|acheteur hesite|apres visite|rendez-vous acheteur)/.test(q)) return "visite";
-  if (/(offre|contre-offre|negociation|prix propose|condition suspensive)/.test(q)) return "offre";
-  return "communication";
-}
-
-function extractText(data: any): string {
-  if (typeof data.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
   const chunks: string[] = [];
-  for (const item of data.output ?? []) {
-    for (const content of item.content ?? []) {
-      if (content.type === "output_text" && typeof content.text === "string") chunks.push(content.text);
+  for (const item of response.output) {
+    if (!item || typeof item !== "object" || !("content" in item) || !Array.isArray(item.content)) continue;
+    for (const content of item.content) {
+      if (content && typeof content === "object" && "text" in content && typeof content.text === "string") {
+        chunks.push(content.text);
+      }
     }
   }
   return chunks.join("\n").trim();
 }
 
-function extractSources(data: any) {
-  const seen = new Set<string>();
-  const sources: { title: string; url: string }[] = [];
-  for (const item of data.output ?? []) {
-    for (const content of item.content ?? []) {
-      for (const annotation of content.annotations ?? []) {
-        const url = annotation.url ?? annotation.url_citation?.url;
-        const title = annotation.title ?? annotation.url_citation?.title ?? "Source officielle";
-        if (url && !seen.has(url)) {
-          seen.add(url);
-          sources.push({ title, url });
-        }
-      }
-    }
-  }
-  return sources.slice(0, 6);
+function isRegulatoryRequest(question: string) {
+  return /\b(peb|urbanisme|permis|bail|préavis|preavis|indexation|copropriété|copropriete|fiscal|loi|légal|legal|réglementation|reglementation|compromis|notaire)\b/i.test(question);
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const question = String(body?.question ?? "").trim();
-    const history = Array.isArray(body?.history) ? body.history.slice(-8) : [];
+    const body = (await request.json()) as { question?: unknown; image?: unknown };
+    const question = typeof body.question === "string" ? body.question.trim() : "";
+    const image = typeof body.image === "string" ? body.image : "";
 
-    if (!question) return NextResponse.json({ error: "Écrivez une demande." }, { status: 400 });
+    if (!question && !image) {
+      return NextResponse.json({ error: "Décrivez la situation ou ajoutez une photo." }, { status: 400 });
+    }
+    if (question.length > MAX_QUESTION_LENGTH) {
+      return NextResponse.json({ error: "La demande est trop longue. Limite : 5 000 caractères." }, { status: 413 });
+    }
+    if (image && (image.length > MAX_IMAGE_LENGTH || !SUPPORTED_IMAGE.test(image))) {
+      return NextResponse.json({ error: "Photo non prise en charge. Utilisez un JPG, PNG ou WebP de moins de 5 Mo." }, { status: 415 });
+    }
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "La clé OpenAI n'est pas encore configurée dans Vercel.", code: "MISSING_API_KEY" }, { status: 503 });
+      return NextResponse.json(
+        { error: "Le moteur ImmoBoost n'est pas encore activé sur cet environnement.", code: "MISSING_API_KEY" },
+        { status: 503 },
+      );
     }
 
-    const agentId = routeAgent(question);
-    const agent = agents[agentId];
-    const input = [
-      ...history.map((message: any) => ({ role: message.role === "assistant" ? "assistant" : "user", content: String(message.content ?? "") })),
-      { role: "user", content: question },
+    const expert = routeQuestion(question || "Analyse cette photo immobilière");
+    const needsOfficialSources = isRegulatoryRequest(question);
+    const content: Array<Record<string, string>> = [
+      {
+        type: "input_text",
+        text: `Situation de l'agent : ${question || "La situation est décrite uniquement par la photo jointe."}`,
+      },
     ];
+    if (image) content.push({ type: "input_image", image_url: image, detail: "high" });
 
-    const payload: any = {
-      model: process.env.OPENAI_MODEL || "gpt-5-mini",
-      instructions: `Tu es ${agent.name}, membre d'ImmoBoost Belgique. ${agent.instructions}\n\nRègles communes : réponds en français, de manière courte et immédiatement exploitable. Commence par la réponse utile, puis propose les éléments copiables. N'invente jamais de faits, prix, caractéristiques, lois ou sources. Ne demande pas de données personnelles inutiles.`,
-      input,
-      max_output_tokens: 1200,
+    const payload: Record<string, unknown> = {
+      model: process.env.OPENAI_MODEL || "gpt-5.6-terra",
+      store: false,
+      reasoning: { effort: "low" },
+      max_output_tokens: 3_200,
+      instructions: `Tu es le Mission Brain d'ImmoBoost AI™, assistant opérationnel pour agents immobiliers en Belgique.
+
+Expert principal sélectionné : ${expert.name}. Domaine : ${expert.scope}.
+
+Ta mission : comprendre la situation, identifier l'objectif réel, puis livrer immédiatement un kit complet et personnalisé. L'utilisateur ne doit chercher aucun template et ne doit pas reformuler sa demande.
+
+Règles de production :
+- Réponds en français belge naturel, professionnel, humain et directement utilisable.
+- Adapte chaque élément aux faits fournis. N'invente jamais de nom, adresse, prix, surface, caractéristique, loi ou délai.
+- Quand une donnée manque, utilise une formulation neutre ou indique précisément quoi confirmer dans la checklist. Ne pose pas de question avant de livrer le kit.
+- Les emails, SMS et scripts doivent être prêts à l'emploi sans champs entre crochets inutiles.
+- Le plan doit être bref, priorisé et exécutable.
+- Les documents sont les pièces à réunir ou produire, jamais des documents prétendument joints.
+- La prochaine action doit être unique, concrète et datée par rapport à maintenant.
+- Pour tout sujet juridique, réglementaire, PEB, urbanisme, fiscal ou régional : distingue information générale et validation professionnelle, utilise uniquement des sources officielles belges actuelles et place leurs URL dans sources.
+- Si aucune vérification réglementaire n'est nécessaire, sources doit être un tableau vide.
+- warning doit être vide sauf si une information doit être vérifiée, si un risque existe ou si un professionnel compétent doit valider un point.
+- Si une photo est jointe, analyse uniquement ce qui est réellement visible et signale toute incertitude.`,
+      input: [{ role: "user", content }],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "immoboost_kit",
+          strict: true,
+          schema: kitSchema,
+        },
+      },
     };
 
-    if (agent.official) payload.tools = [{ type: "web_search" }];
+    if (needsOfficialSources) payload.tools = [{ type: "web_search" }];
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -127,21 +191,33 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(60_000),
     });
 
-    const data = await response.json();
+    const data: unknown = await response.json();
     if (!response.ok) {
-      console.error("OpenAI error", data);
-      return NextResponse.json({ error: "Le moteur IA n'a pas pu répondre. Vérifiez la clé API et le crédit du compte." }, { status: 502 });
+      console.error("OpenAI Responses error", response.status, data);
+      return NextResponse.json({ error: "Le moteur ImmoBoost n'a pas pu préparer le kit. Réessayez dans un instant." }, { status: 502 });
     }
 
-    return NextResponse.json({
-      answer: extractText(data) || "Je n'ai pas obtenu de réponse exploitable.",
-      agent: { id: agentId, name: agent.name, icon: agent.icon, official: Boolean(agent.official) },
-      sources: extractSources(data),
-    });
+    const outputText = extractOutputText(data);
+    if (!outputText) {
+      return NextResponse.json({ error: "Le moteur n'a pas produit de kit exploitable." }, { status: 502 });
+    }
+
+    let kit: unknown;
+    try {
+      kit = JSON.parse(outputText);
+    } catch {
+      return NextResponse.json({ error: "Le kit reçu est incomplet. Réessayez." }, { status: 502 });
+    }
+
+    return NextResponse.json({ kit, expert: { id: expert.id, name: expert.name } });
   } catch (error) {
-    console.error(error);
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return NextResponse.json({ error: "La préparation prend trop de temps. Réessayez." }, { status: 504 });
+    }
+    console.error("ImmoBoost API error", error);
     return NextResponse.json({ error: "Une erreur inattendue est survenue." }, { status: 500 });
   }
 }
