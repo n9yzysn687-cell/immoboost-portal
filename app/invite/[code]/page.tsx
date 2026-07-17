@@ -1,4 +1,10 @@
 import { getDemoAccount } from "../../../lib/demo-accounts";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Accès privé",
+  robots: { index: false, follow: false },
+};
 
 export default async function InvitePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { getSiteUrl } from "../lib/site";
+
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://agentdaily.example"),
-  title: { default: "ImmoBoost", template: "%s · ImmoBoost" },
+  metadataBase: new URL(siteUrl),
+  title: { default: "ImmoBoost · Copilote pour agents immobiliers", template: "%s · ImmoBoost" },
   description: "Le copilote opérationnel des agents immobiliers : priorités, meilleure prochaine action et suivi préparé.",
   applicationName: "ImmoBoost",
   manifest: "/manifest.webmanifest",
@@ -13,7 +16,7 @@ export const metadata: Metadata = {
     description: "Chaque situation devient une meilleure prochaine action, prête à exécuter.",
     url: "/",
     siteName: "ImmoBoost",
-    locale: "fr_FR",
+    locale: "fr_BE",
     type: "website",
   },
   twitter: {
@@ -21,6 +24,9 @@ export const metadata: Metadata = {
     title: "ImmoBoost",
     description: "Le cockpit quotidien des agents immobiliers en Belgique francophone.",
   },
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export const viewport: Viewport = {
@@ -32,12 +38,24 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "ImmoBoost",
-    applicationCategory: "BusinessApplication",
-    operatingSystem: "Web, iOS, Android",
-    description: "Copilote opérationnel immobilier avec priorisation, missions exécutables et suivi préparé.",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: "ImmoBoost",
+        url: siteUrl,
+        description: "Copilote opérationnel pour agents immobiliers en Belgique francophone.",
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        name: "ImmoBoost",
+        url: siteUrl,
+        inLanguage: "fr-BE",
+        publisher: { "@id": `${siteUrl}/#organization` },
+        audience: { "@type": "BusinessAudience", audienceType: "Agents immobiliers indépendants et petites agences" },
+      },
+    ],
   };
 
   return (

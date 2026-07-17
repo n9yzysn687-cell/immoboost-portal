@@ -632,6 +632,20 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   font-size: 9px;
   font-weight: 760;
 }
+
+.guideLink {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  color: #aeb9cc;
+  background: rgba(255,255,255,.035);
+  font-size: 9px;
+  font-weight: 820;
+}
+.guideLink:hover { color: #fff; border-color: rgba(139,121,255,.36); }
 .phase-ready .trustLine { opacity: 0; }
 .trustLine i { width: 3px; height: 3px; border-radius: 50%; background: #455067; }
 .toast {
@@ -704,6 +718,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .marketPicker select { color: var(--ink); }
   .boostPill { padding: 0 10px; }
   .boostPill small { display: none; }
+  .guideLink { width: 36px; padding: 0; justify-content: center; overflow: hidden; color: transparent; }
+  .guideLink::after { content: "?"; color: #aeb9cc; font-size: 12px; }
   .world { width: calc(100% - 22px); height: calc(100svh - 98px); min-height: 630px; }
   .world::before { display: none; }
   .worldCopy { top: 4%; width: 100%; }

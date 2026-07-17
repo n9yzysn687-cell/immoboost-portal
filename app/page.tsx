@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImmersiveField, type ImmersivePhase } from "./components/ImmersiveField";
 import { markets, type MarketCode, type buildMissionKit } from "../lib/daily-engine";
 
@@ -104,6 +104,13 @@ export default function Home() {
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (window.location.hash !== "#nouvelle-situation") return;
+    setSelectedSignal(null);
+    setCaptureOpen(true);
+    window.setTimeout(() => textarea.current?.focus(), 520);
+  }, []);
 
   const focus = selectedSignal?.index ?? -1;
   const stageLabel = useMemo(() => {
@@ -276,6 +283,7 @@ export default function Home() {
           <strong>ImmoBoost</strong>
         </button>
         <div className="topbarTools">
+          <a className="guideLink" href="/situations">Guides terrain</a>
           <span className="launchMarket">BE · FR</span>
           <a className="boostPill" href="/invite/daily-vendeur" aria-label="Solde : 250 Boosts"><span>250</span><small>Boosts</small></a>
         </div>
