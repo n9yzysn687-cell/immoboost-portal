@@ -4,13 +4,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://agentdaily.example"),
   title: { default: "Agent Daily", template: "%s · Agent Daily" },
-  description: "Cockpit IA premium pour professionnels de l’immobilier : Mission Brain, experts métiers, crédits signés et kits mission complets.",
+  description: "L’assistant opérationnel des agents immobiliers : une situation, les bons experts et un kit prêt à utiliser.",
   applicationName: "Agent Daily",
   manifest: "/manifest.webmanifest",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Agent Daily",
-    description: "Transformez chaque situation immobilière en mission prête à exécuter.",
+    description: "Une situation. Les bons experts. Une mission prête à exécuter.",
     url: "/",
     siteName: "Agent Daily",
     locale: "fr_FR",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Agent Daily",
-    description: "Mission Brain, experts métiers et portefeuille de crédits signé côté serveur.",
+    description: "Le cockpit quotidien des agents immobiliers francophones.",
   },
 };
 
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     name: "Agent Daily",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web, iOS, Android",
-    description: "Cockpit IA immobilier avec experts métiers, kits mission, crédits signés et transparence des données.",
+    description: "Assistant opérationnel immobilier avec experts métiers et kits mission prêts à utiliser.",
     offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
   };
 

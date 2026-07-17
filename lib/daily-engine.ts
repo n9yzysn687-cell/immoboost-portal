@@ -68,7 +68,6 @@ export function buildMissionKit(situation: string, market: MarketCode, workflow?
   const marketProfile = markets[market];
   const experts = selectExperts(situation);
   const engine = chooseEngine(situation, workflow);
-  const usage = estimateUsage(situation, engine);
   const objective = workflow?.promise ?? "Clarifier la situation et transformer la demande en action métier exploitable.";
 
   return {
@@ -77,25 +76,24 @@ export function buildMissionKit(situation: string, market: MarketCode, workflow?
     marketProfile,
     experts,
     engine,
-    usage,
-    diagnostic: `Situation détectée : ${situation || "mission à préciser"}. Marché ${marketProfile.name}, terminologie à privilégier : ${marketProfile.terms.join(", ")}.`,
+    diagnostic: `${marketProfile.name} · ${situation || "Mission à préciser"}. Points à sécuriser : ${marketProfile.terms.slice(0, 2).join(" et ")}.`,
     objective,
-    plan: ["Qualifier les faits disponibles", "Identifier les risques métier ou réglementaires", "Préparer les messages copiables", "Définir la prochaine action mesurable"],
-    email: "Objet : Suite à notre échange\n\nBonjour,\n\nJe reviens vers vous avec une proposition claire et structurée. Voici les points importants, les éléments à vérifier et la prochaine étape que je vous propose.\n\nBien à vous,",
-    sms: "Bonjour, je vous propose de faire le point sur votre situation et de valider ensemble la prochaine étape. Êtes-vous disponible aujourd’hui ?",
-    callScript: ["Bonjour, je vous appelle pour clarifier la situation et vous proposer une suite simple.", "Ce que j’ai compris : …", "La meilleure prochaine étape serait …", "Est-ce que cela vous convient si nous fixons … ?"],
+    plan: ["Confirmer les faits utiles", "Sécuriser les points sensibles", "Envoyer le bon message", "Fixer la prochaine action"],
+    email: "Objet : La prochaine étape\n\nBonjour,\n\nÀ la suite de notre échange, je vous propose une étape simple : valider ensemble les points essentiels, puis avancer avec une décision claire.\n\nQuand pouvons-nous en parler ?\n\nBien à vous,",
+    sms: "Bonjour, j’ai préparé une suite simple pour avancer. Êtes-vous disponible aujourd’hui pour la valider ensemble ?",
+    callScript: ["Rappeler le contexte en une phrase", "Valider le vrai blocage", "Présenter une seule solution", "Obtenir une date ou une décision"],
     checklist: ["Contexte du bien et objectif client", "Données chiffrées fournies sans invention", "Documents disponibles", "Points à confirmer localement", "Message de suivi prêt à envoyer"],
     documents: ["Mandat ou accord écrit si nécessaire", "Documents techniques disponibles", "Pièces urbanistiques ou énergétiques selon marché", "Historique des échanges utiles"],
-    nextAction: "Lancer la mission avec les experts activés, puis débiter les crédits uniquement si le kit est généré avec succès.",
+    nextAction: "Contacter le client aujourd’hui avec le message préparé, puis fixer une date précise.",
     growthPack: ["Post LinkedIn local", "Story courte avec appel à l’action", "Email de relance prospect", "Angle Canva pour carrousel", "Message Google Business sobre"],
-    dataPolicy: "store:false — aucune conversation ne doit être conservée par le fournisseur IA ; seules les métriques nécessaires au portefeuille de crédits sont traitées côté serveur.",
+    dataPolicy: "Le contenu des missions n’est pas conservé par le fournisseur IA. Seuls le solde et l’usage indispensable au service sont enregistrés.",
     caution: marketProfile.caution,
   };
 }
 
-export function signCreditWallet(inviteCode: string, credits = 250) {
+export function signCreditWallet(inviteCode: string, boosts = 250) {
   const issuedAt = new Date().toISOString();
-  const payload = { inviteCode, credits, issuedAt, product: "Agent Daily" };
+  const payload = { inviteCode, boosts, issuedAt, product: "Agent Daily" };
   const secret = process.env.CREDIT_SIGNING_SECRET || "agent-daily-local-demo-secret";
   const signature = createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
   return { ...payload, signature };

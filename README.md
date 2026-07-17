@@ -9,7 +9,7 @@ Agent Daily transforme une situation terrain en mission complète : diagnostic, 
 - Mission Brain avec entrée texte, micro et photo ;
 - activation automatique de 1 à 3 experts métiers ;
 - marchés BE, FR, LU, CH, CA, MC, MA, TN, SN, CI, CM, CD et DZ avec terminologie locale ;
-- portefeuille de crédits signé côté serveur et débit uniquement après mission réussie ;
+- portefeuille de Boosts signé côté serveur, avec 1 mission réussie = 1 Boost ;
 - `store:false`, transparence des données et aucune clé API dans le code ;
 - pas de CRM et pas de chatbot classique.
 

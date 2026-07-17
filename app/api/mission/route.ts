@@ -14,11 +14,10 @@ export async function POST(request: Request) {
 
     const workflow = searchWorkflows(situation, "all")[0];
     const kit = buildMissionKit(situation, market, workflow);
-    const creditsDebited = kit.engine === "quality" ? 3 : 1;
 
-    return NextResponse.json({ kit, billing: { success: true, creditsDebited, debitedAfterSuccess: true } });
+    return NextResponse.json({ kit, billing: { success: true, boostsDebited: 1, debitedAfterSuccess: true } });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Mission non finalisée, aucun crédit débité." }, { status: 500 });
+    return NextResponse.json({ error: "Mission non finalisée, aucun Boost débité." }, { status: 500 });
   }
 }

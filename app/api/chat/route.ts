@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     const data = await response.json();
     if (!response.ok) {
       console.error("OpenAI error", data);
-      return NextResponse.json({ error: "Le moteur IA n'a pas pu répondre. Aucun crédit ne doit être débité." }, { status: 502 });
+      return NextResponse.json({ error: "Le moteur n'a pas pu répondre. Aucun Boost ne doit être débité." }, { status: 502 });
     }
 
     return NextResponse.json({

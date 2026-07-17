@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { dailyActions } from "../lib/daily-actions";
 import { buildMissionKit, markets, type MarketCode } from "../lib/daily-engine";
 import { searchWorkflows, workflows } from "../lib/workflows";
@@ -9,16 +9,43 @@ type InputMode = "texte" | "micro" | "photo";
 
 const marketCodes = Object.keys(markets) as MarketCode[];
 const missionPrompts = [
-  "Mon vendeur refuse l’exclusivité et compare mes honoraires",
-  "Je dois répondre à une offre trop basse avant ce soir",
-  "Je veux transformer ce bien en annonce + posts sociaux",
+  "Mon vendeur refuse de revoir son prix",
+  "Je dois relancer mes acheteurs indécis",
+  "Prépare l’annonce et les réseaux de ce bien",
 ];
+
+function ModeIcon({ mode }: { mode: InputMode }) {
+  if (mode === "micro") {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>;
+  }
+  if (mode === "photo") {
+    return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="m7 16 3-3 3 3 2-2 3 3M8 5l1.2-2h5.6L16 5"/><circle cx="16.5" cy="9.5" r="1.5"/></svg>;
+  }
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.9-10.9a2.1 2.1 0 0 0-3-3L5.2 16Z"/><path d="m14.7 6.5 3 3M4 20h16"/></svg>;
+}
+
+function ActionIcon({ id }: { id: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    email: <><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></>,
+    prospect: <><path d="M7 3h3l1.2 5-2.3 1.5a15 15 0 0 0 5.6 5.6l1.5-2.3 5 1.2v3a4 4 0 0 1-4 4A14 14 0 0 1 3 7a4 4 0 0 1 4-4Z"/></>,
+    listing: <><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></>,
+    photos: <><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 17 5-5 4 4 2-2 5 4"/></>,
+    seller: <><path d="M7 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM17 11a3 3 0 1 0 0-6"/><path d="M2 21v-2a5 5 0 0 1 10 0v2M14 21v-1a4 4 0 0 1 8 0v1"/></>,
+    visit: <><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6M8 10h.01M16 10h.01"/></>,
+    offer: <><path d="M4 7h16v12H4zM8 7V5h8v2"/><path d="M8 13h8M12 10v6"/></>,
+    verify: <><path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6Z"/><path d="m9 12 2 2 4-5"/></>,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[id] ?? paths.email}</svg>;
+}
 
 export default function Home() {
   const [situation, setSituation] = useState("");
   const [market, setMarket] = useState<MarketCode>("BE");
   const [mode, setMode] = useState<InputMode>("texte");
   const [missionReady, setMissionReady] = useState(false);
+  const [photoName, setPhotoName] = useState("");
+  const [listening, setListening] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const workflow = useMemo(() => (situation.trim() ? searchWorkflows(situation, "all")[0] ?? workflows[0] : workflows[0]), [situation]);
   const kit = useMemo(() => buildMissionKit(situation, market, workflow), [situation, market, workflow]);
@@ -27,90 +54,169 @@ export default function Home() {
     if (!text.trim()) return;
     setSituation(text);
     setMissionReady(true);
+    window.setTimeout(() => document.querySelector("#kit")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }
+
+  function chooseMode(nextMode: InputMode) {
+    setMode(nextMode);
+    if (nextMode === "photo") photoInput.current?.click();
+    if (nextMode !== "micro") return;
+
+    const speechWindow = window as typeof window & {
+      SpeechRecognition?: new () => any;
+      webkitSpeechRecognition?: new () => any;
+    };
+    const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!Recognition) {
+      setMode("texte");
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = String(event.results?.[0]?.[0]?.transcript ?? "");
+      if (transcript) setSituation((current) => `${current} ${transcript}`.trim());
+    };
+    recognition.start();
   }
 
   return (
-    <main className="agentDailyShell">
-      <header className="dailyTopbar">
-        <a className="dailyBrand" href="#top" aria-label="Agent Daily accueil"><span>AD</span><strong>Agent Daily</strong></a>
-        <nav>
-          <a href="#brain">Mission Brain</a>
-          <a href="#kit">Kit complet</a>
-          <a href="/invite/daily-vendeur">Démo 250 crédits</a>
-        </nav>
-      </header>
-
-      <section id="top" className="cockpitHero">
-        <div className="scene3d" aria-hidden="true">
-          <div className="brainOrb"><span>Mission Brain</span></div>
-          <div className="orbit orbitOne" />
-          <div className="orbit orbitTwo" />
-          <div className="floatingPanel panelOne">Texte</div>
-          <div className="floatingPanel panelTwo">Micro</div>
-          <div className="floatingPanel panelThree">Photo</div>
-        </div>
-
-        <div className="heroCopy">
-          <span className="eyebrow">Agent Daily v0.8 · Copilote métier immobilier</span>
-          <h1>Un cockpit premium pour transformer chaque situation en mission prête à exécuter.</h1>
-          <p>Pas un CRM. Pas un chatbot classique. Agent Daily active les bons experts, prépare le kit complet et protège les crédits jusqu’à la réussite de la mission.</p>
-          <div className="trustRow"><span>store:false</span><span>Crédits signés serveur</span><span>BE · FR · LU · CH · CA · Afrique francophone</span></div>
-        </div>
-
-        <div className="missionConsole" id="brain">
-          <div className="consoleHeader">
-            <strong>Mission Brain</strong>
-            <select value={market} onChange={(event) => setMarket(event.target.value as MarketCode)} aria-label="Marché">
+    <main className="dailyShell">
+      <header className="topbar">
+        <a className="brand" href="#top" aria-label="Agent Daily accueil">
+          <span className="brandMark"><i /><i /><i /></span>
+          <strong>Agent Daily</strong>
+        </a>
+        <div className="topbarTools">
+          <label className="marketPicker">
+            <span className="srOnly">Marché</span>
+            <select value={market} onChange={(event) => setMarket(event.target.value as MarketCode)}>
               {marketCodes.map((code) => <option key={code} value={code}>{code} · {markets[code].name}</option>)}
             </select>
+          </label>
+          <a className="boostPill" href="/invite/daily-vendeur"><span>250</span> Boosts</a>
+        </div>
+      </header>
+
+      <section id="top" className="cockpit">
+        <div className="ambientLight ambientOne" aria-hidden="true" />
+        <div className="ambientLight ambientTwo" aria-hidden="true" />
+        <div className="coreScene" aria-hidden="true">
+          <div className="coreHalo haloOuter" />
+          <div className="coreHalo haloInner" />
+          <div className="coreOrb"><span>AD</span></div>
+          <div className="coreTag tagOne">Comprendre</div>
+          <div className="coreTag tagTwo">Préparer</div>
+          <div className="coreTag tagThree">Agir</div>
+        </div>
+
+        <div className="cockpitIntro">
+          <span className="liveStatus"><i /> Assistant opérationnel</span>
+          <h1>Que se passe-t-il aujourd’hui&nbsp;?</h1>
+          <p>Décrivez la situation. Agent Daily prépare la suite.</p>
+        </div>
+
+        <div className="missionDock" id="brain">
+          <textarea
+            value={situation}
+            onChange={(event) => setSituation(event.target.value)}
+            placeholder="Ex. Mon vendeur refuse de baisser son prix…"
+            aria-label="Décrivez votre situation"
+          />
+          {photoName ? <div className="attachment"><ModeIcon mode="photo" /><span>{photoName}</span><button onClick={() => setPhotoName("")} aria-label="Retirer la photo">×</button></div> : null}
+          <input
+            ref={photoInput}
+            className="fileInput"
+            type="file"
+            accept="image/*"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                setPhotoName(file.name);
+                if (!situation) setSituation("Analyse cette photo immobilière et prépare les actions utiles.");
+              }
+            }}
+          />
+          <div className="dockControls">
+            <div className="modeButtons" aria-label="Mode de saisie">
+              {(["texte", "micro", "photo"] as InputMode[]).map((item) => (
+                <button
+                  key={item}
+                  className={mode === item ? "active" : ""}
+                  onClick={() => chooseMode(item)}
+                  aria-label={item === "texte" ? "Écrire" : item === "micro" ? "Dicter" : "Ajouter une photo"}
+                  title={item === "texte" ? "Écrire" : item === "micro" ? "Dicter" : "Ajouter une photo"}
+                >
+                  <ModeIcon mode={item} />
+                  <span>{item === "texte" ? "Écrire" : item === "micro" ? (listening ? "Écoute…" : "Dicter") : "Photo"}</span>
+                </button>
+              ))}
+            </div>
+            <button className="launchButton" onClick={() => launchMission()} disabled={!situation.trim()}>
+              Préparer ma mission
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
           </div>
-          <div className="inputModes" role="tablist" aria-label="Mode de mission">
-            {(["texte", "micro", "photo"] as InputMode[]).map((item) => <button key={item} className={mode === item ? "active" : ""} onClick={() => setMode(item)}>{item === "texte" ? "✍️ Texte" : item === "micro" ? "🎙️ Micro" : "📸 Photo"}</button>)}
+        </div>
+
+        <div className="suggestionRail" aria-label="Situations fréquentes">
+          {missionPrompts.map((prompt) => <button key={prompt} onClick={() => launchMission(prompt)}>{prompt}<span>→</span></button>)}
+        </div>
+      </section>
+
+      <section className="actionDeck" aria-label="Actions du jour">
+        <div className="sectionHeading"><span>Aujourd’hui</span><h2>Commencer en un geste.</h2></div>
+        <div className="actionGrid">
+          {dailyActions.map((action) => (
+            <button key={action.id} onClick={() => {
+              setSituation(action.prompt);
+              setMissionReady(false);
+              document.querySelector("#brain")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}>
+              <span className="actionIcon"><ActionIcon id={action.id} /></span>
+              <strong>{action.title}</strong>
+              <small>{action.description.split(".")[0]}</small>
+              <i>→</i>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {missionReady ? (
+        <section id="kit" className="missionResult">
+          <div className="resultHeader">
+            <div><span className="resultStatus"><i /> Mission prête</span><h2>{workflow.title}</h2><p>{kit.objective}</p></div>
+            <div className="boostReceipt"><strong>1</strong><span>Boost après<br/>livraison réussie</span></div>
           </div>
-          <textarea value={situation} onChange={(event) => setSituation(event.target.value)} placeholder="Décrivez la situation : vendeur, acheteur, offre, photo, règle locale, document…" />
-          <button className="launchButton" onClick={() => launchMission()} disabled={!situation.trim()}>Générer le kit mission <span>→</span></button>
-          <div className="promptChips">
-            {missionPrompts.map((prompt) => <button key={prompt} onClick={() => launchMission(prompt)}>{prompt}</button>)}
+
+          <div className="expertStrip">
+            <span>Experts activés</span>
+            {kit.experts.map((expert) => <div key={expert.id}><b>{expert.icon}</b>{expert.name.replace("Agent", "Expert")}</div>)}
           </div>
-        </div>
-      </section>
 
-      <section className="dailyActionsSection" aria-label="Actions quotidiennes Agent Daily">
-        <div><span className="eyebrow">Actions du jour</span><h2>Raccourcis métier sans friction.</h2></div>
-        <div className="dailyActionsGrid">
-          {dailyActions.map((action) => <button key={action.id} onClick={() => launchMission(action.prompt)}><span>{action.icon}</span><strong>{action.title}</strong><small>{action.description}</small></button>)}
-        </div>
-      </section>
+          <div className="kitGrid">
+            <article className="diagnosticCard"><small>Diagnostic</small><p>{kit.diagnostic}</p></article>
+            <article><small>Plan d’action</small><ol>{kit.plan.map((item) => <li key={item}>{item}</li>)}</ol></article>
+            <article><small>Email prêt</small><p>{kit.email}</p></article>
+            <article><small>SMS / WhatsApp</small><p>{kit.sms}</p></article>
+            <article><small>Script d’appel</small><ol>{kit.callScript.map((item) => <li key={item}>{item}</li>)}</ol></article>
+            <article><small>Checklist</small><ul>{kit.checklist.map((item) => <li key={item}>{item}</li>)}</ul></article>
+            <article><small>Documents</small><ul>{kit.documents.map((item) => <li key={item}>{item}</li>)}</ul></article>
+            <article className="nextCard"><small>Prochaine action</small><p>{kit.nextAction}</p><button>Ajouter à aujourd’hui <span>→</span></button></article>
+            <article className="growthCard"><small>Pack visibilité</small><ul>{kit.growthPack.map((item) => <li key={item}>{item}</li>)}</ul></article>
+          </div>
+        </section>
+      ) : null}
 
-      <section className="expertsDeck">
-        <div className="sectionTitle"><span className="eyebrow">Activation automatique</span><h2>1 à 3 experts spécialisés par situation.</h2><p>Agent Daily route la mission selon le contexte et ajoute un niveau de prudence réglementaire par marché.</p></div>
-        <div className="expertCards">
-          {kit.experts.map((expert) => <article key={expert.id}><span>{expert.icon}</span><h3>{expert.name.replace("Agent", "Expert")}</h3><p>{expert.scope}</p><small>{expert.trust === "official" ? "Sources officielles requises" : expert.trust === "mixed" ? "Métier + vérifications" : "Méthode métier"}</small></article>)}
-        </div>
-      </section>
-
-      <section id="kit" className="kitSection">
-        <div className="kitHeader"><span className="eyebrow">Kit mission complet</span><h2>{missionReady ? workflow.title : "Prêt dès que la mission est lancée"}</h2><p>{kit.diagnostic}</p></div>
-        <div className="kitGrid">
-          <article><small>Diagnostic</small><p>{kit.diagnostic}</p></article>
-          <article><small>Objectif</small><p>{kit.objective}</p></article>
-          <article><small>Plan</small><ul>{kit.plan.map((item) => <li key={item}>{item}</li>)}</ul></article>
-          <article><small>Email</small><p>{kit.email}</p></article>
-          <article><small>SMS / WhatsApp</small><p>{kit.sms}</p></article>
-          <article><small>Script d’appel</small><ul>{kit.callScript.map((item) => <li key={item}>{item}</li>)}</ul></article>
-          <article><small>Checklist</small><ul>{kit.checklist.map((item) => <li key={item}>{item}</li>)}</ul></article>
-          <article><small>Documents</small><ul>{kit.documents.map((item) => <li key={item}>{item}</li>)}</ul></article>
-          <article><small>Prochaine action</small><p>{kit.nextAction}</p></article>
-          <article className="growthPack"><small>Growth Pack marketing</small><ul>{kit.growthPack.map((item) => <li key={item}>{item}</li>)}</ul></article>
-        </div>
-      </section>
-
-      <section className="opsSection">
-        <article><span>⚙️</span><h3>Moteur IA</h3><p>{kit.engine === "quality" ? "Moteur qualité activé pour photo, négociation ou réglementation." : "Moteur économique activé pour une tâche simple."}</p></article>
-        <article><span>🪙</span><h3>Jetons & coût</h3><p>{kit.usage.totalTokens} jetons estimés · coût API ~{kit.usage.estimatedCost.toFixed(4)} €.</p></article>
-        <article><span>🔐</span><h3>Données</h3><p>{kit.dataPolicy}</p></article>
-        <article><span>🌍</span><h3>Marché</h3><p>{kit.marketProfile.name} · {kit.caution}</p></article>
-      </section>
+      <footer className="privacyBar">
+        <span className="privacyIcon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6Z"/><path d="m9 12 2 2 4-5"/></svg></span>
+        <div><strong>Vos données restent sous contrôle.</strong><p>Le contenu des missions n’est pas conservé par le fournisseur IA. Seuls le solde et l’usage nécessaire au service sont enregistrés.</p></div>
+      </footer>
     </main>
   );
 }
