@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Agent Daily",
-    short_name: "Agent Daily",
+    name: "ImmoBoost",
+    short_name: "ImmoBoost",
     description: "Le cockpit quotidien des agents immobiliers.",
     start_url: "/",
     display: "standalone",

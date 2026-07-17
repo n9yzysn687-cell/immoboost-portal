@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const situation = String(body?.situation ?? "").trim();
     const market = String(body?.market ?? "BE") as MarketCode;
 
-    if (!situation) return NextResponse.json({ error: "Décrivez une mission Agent Daily." }, { status: 400 });
+    if (!situation) return NextResponse.json({ error: "Décrivez une situation immobilière." }, { status: 400 });
 
     const workflow = searchWorkflows(situation, "all")[0];
     const kit = buildMissionKit(situation, market, workflow);

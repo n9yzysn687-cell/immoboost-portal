@@ -1,8 +1,8 @@
-# Agent Daily
+# ImmoBoost
 
 Cockpit IA premium pour professionnels de l’immobilier.
 
-Agent Daily transforme une situation terrain en mission complète : diagnostic, objectif, plan, messages, script d’appel, checklist, documents, prochaine action et Growth Pack marketing.
+ImmoBoost transforme chaque situation immobilière en meilleure prochaine action, prépare son exécution et organise le suivi.
 
 ## Principes produit
 

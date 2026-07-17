@@ -3,23 +3,23 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://agentdaily.example"),
-  title: { default: "Agent Daily", template: "%s · Agent Daily" },
-  description: "L’assistant opérationnel des agents immobiliers : une situation, les bons experts et un kit prêt à utiliser.",
-  applicationName: "Agent Daily",
+  title: { default: "ImmoBoost", template: "%s · ImmoBoost" },
+  description: "Le copilote opérationnel des agents immobiliers : priorités, meilleure prochaine action et suivi préparé.",
+  applicationName: "ImmoBoost",
   manifest: "/manifest.webmanifest",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Agent Daily",
-    description: "Une situation. Les bons experts. Une mission prête à exécuter.",
+    title: "ImmoBoost",
+    description: "Chaque situation devient une meilleure prochaine action, prête à exécuter.",
     url: "/",
-    siteName: "Agent Daily",
+    siteName: "ImmoBoost",
     locale: "fr_FR",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Agent Daily",
-    description: "Le cockpit quotidien des agents immobiliers francophones.",
+    title: "ImmoBoost",
+    description: "Le cockpit quotidien des agents immobiliers en Belgique francophone.",
   },
 };
 
@@ -33,10 +33,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Agent Daily",
+    name: "ImmoBoost",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web, iOS, Android",
-    description: "Assistant opérationnel immobilier avec experts métiers et kits mission prêts à utiliser.",
+    description: "Copilote opérationnel immobilier avec priorisation, missions exécutables et suivi préparé.",
     offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
   };
 

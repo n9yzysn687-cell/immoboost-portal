@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
     const payload: any = {
       model: process.env.OPENAI_MODEL || "gpt-5-mini",
-      instructions: `Tu es ${agent.name}, membre d'Agent Daily. ${agent.instructions}\n\nRègles communes : réponds en français, de manière courte et immédiatement exploitable. Commence par la réponse utile, puis propose les éléments copiables. N'invente jamais de faits, prix, caractéristiques, lois ou sources. Ne demande pas de données personnelles inutiles.`,
+      instructions: `Tu es ${agent.name}, expert invisible d'ImmoBoost. ${agent.instructions}\n\nRègles communes : réponds en français, de manière courte et immédiatement exploitable. Commence par la meilleure prochaine action, puis prépare son exécution et son suivi. N'invente jamais de faits, prix, caractéristiques, lois ou sources. Ne demande pas de données personnelles inutiles.`,
       input,
       max_output_tokens: 1200,
       store: false,

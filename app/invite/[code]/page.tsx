@@ -7,9 +7,9 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
   return (
     <main className="dailyShell inviteShell">
       <section className="inviteCard">
-        <a className="brand" href="/" aria-label="Agent Daily accueil">
+        <a className="brand" href="/" aria-label="ImmoBoost accueil">
           <span className="brandMark"><i /><i /><i /></span>
-          <strong>Agent Daily</strong>
+          <strong>ImmoBoost</strong>
         </a>
         <span className="liveStatus"><i /> Accès privé activé</span>
         <h1>Bienvenue dans<br/>{account.name}.</h1>
