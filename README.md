@@ -1,18 +1,17 @@
-# ImmoBoost Portal
+# Agent Daily
 
-Le workspace intelligent des professionnels de l'immobilier.
+Cockpit IA premium pour professionnels de l’immobilier.
 
-## Sprint 1
+Agent Daily transforme une situation terrain en mission complète : diagnostic, objectif, plan, messages, script d’appel, checklist, documents, prochaine action et Growth Pack marketing.
 
-Cette première version contient :
+## Principes produit
 
-- une application Next.js et TypeScript ;
-- un dashboard responsive ;
-- l'accès direct à ImmoBoost Copilot™ ;
-- les 12 Missions avec suivi de progression ;
-- les espaces Copilot et Ressources ;
-- un design premium mobile-first ;
-- une configuration prête pour Vercel.
+- Mission Brain avec entrée texte, micro et photo ;
+- activation automatique de 1 à 3 experts métiers ;
+- marchés BE, FR, LU, CH, CA, MC, MA, TN, SN, CI, CM, CD et DZ avec terminologie locale ;
+- portefeuille de crédits signé côté serveur et débit uniquement après mission réussie ;
+- `store:false`, transparence des données et aucune clé API dans le code ;
+- pas de CRM et pas de chatbot classique.
 
 ## Lancer le projet
 
@@ -21,10 +20,10 @@ npm install
 npm run dev
 ```
 
-## Déploiement
+## Vérifications
 
-Importer le dépôt dans Vercel puis déployer la branche `main` après validation de la Pull Request.
-
-## Statut
-
-Version 0.1, fondation fonctionnelle. Les contenus clients, contrôles d'accès et documents juridiques seront ajoutés dans les prochains sprints.
+```bash
+npm run typecheck
+npm test
+npm run build
+```

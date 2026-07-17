@@ -1,159 +1,116 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { buildExpertPrompt, searchWorkflows, workflows, type Workflow } from "../lib/workflows";
+import { useMemo, useState } from "react";
+import { dailyActions } from "../lib/daily-actions";
+import { buildMissionKit, markets, type MarketCode } from "../lib/daily-engine";
+import { searchWorkflows, workflows } from "../lib/workflows";
 
-type Provider = { name: string; icon: string; url: string };
-type Screen = "home" | "diagnosis" | "workflow" | "dossiers";
-type Dossier = { id: string; name: string; location: string; stage: string };
+type InputMode = "texte" | "micro" | "photo";
 
-const providers: Provider[] = [
-  { name: "ChatGPT", icon: "◉", url: "https://chatgpt.com/" },
-  { name: "Gemini", icon: "✦", url: "https://gemini.google.com/app" },
-  { name: "Claude", icon: "◇", url: "https://claude.ai/new" },
-];
-
-const quickStarts = [
-  "Mon vendeur refuse l’exclusivité",
-  "Je dois créer une annonce",
-  "J’ai une visite dans une heure",
-  "Mon acheteur fait une offre trop basse",
+const marketCodes = Object.keys(markets) as MarketCode[];
+const missionPrompts = [
+  "Mon vendeur refuse l’exclusivité et compare mes honoraires",
+  "Je dois répondre à une offre trop basse avant ce soir",
+  "Je veux transformer ce bien en annonce + posts sociaux",
 ];
 
 export default function Home() {
-  const [screen, setScreen] = useState<Screen>("home");
   const [situation, setSituation] = useState("");
-  const [active, setActive] = useState<Workflow | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [generated, setGenerated] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [market, setMarket] = useState<MarketCode>("BE");
+  const [mode, setMode] = useState<InputMode>("texte");
+  const [missionReady, setMissionReady] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("immoboost-simple-dossiers");
-    if (saved) setDossiers(JSON.parse(saved));
-  }, []);
+  const workflow = useMemo(() => (situation.trim() ? searchWorkflows(situation, "all")[0] ?? workflows[0] : workflows[0]), [situation]);
+  const kit = useMemo(() => buildMissionKit(situation, market, workflow), [situation, market, workflow]);
 
-  const recommendation = useMemo(() => situation.trim() ? searchWorkflows(situation, "all")[0] ?? workflows[0] : null, [situation]);
-  const prompt = useMemo(() => active ? buildExpertPrompt(active, { situation, ...values }) : "", [active, situation, values]);
-  const missingRequired = active?.fields.some((field) => field.required && !values[field.id]?.trim()) ?? true;
-
-  function diagnose(text = situation) {
+  function launchMission(text = situation) {
     if (!text.trim()) return;
     setSituation(text);
-    setScreen("diagnosis");
-  }
-
-  function startWorkflow(workflow: Workflow) {
-    setActive(workflow);
-    setValues({});
-    setGenerated(false);
-    setScreen("workflow");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  async function launch(provider: Provider) {
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    window.open(provider.url, "_blank", "noopener,noreferrer");
-    setTimeout(() => setCopied(false), 1600);
-  }
-
-  function reset() {
-    setScreen("home");
-    setSituation("");
-    setActive(null);
-    setGenerated(false);
+    setMissionReady(true);
   }
 
   return (
-    <main className="copilotShell">
-      <header className="minimalTopbar">
-        <button className="wordmark" onClick={reset}><span>IB</span><strong>ImmoBoost</strong></button>
-        <div className="topActions">
-          <button onClick={() => setScreen("dossiers")}>Mes dossiers</button>
-          <span>Belgique · FR</span>
-        </div>
+    <main className="agentDailyShell">
+      <header className="dailyTopbar">
+        <a className="dailyBrand" href="#top" aria-label="Agent Daily accueil"><span>AD</span><strong>Agent Daily</strong></a>
+        <nav>
+          <a href="#brain">Mission Brain</a>
+          <a href="#kit">Kit complet</a>
+          <a href="/invite/daily-vendeur">Démo 250 crédits</a>
+        </nav>
       </header>
 
-      {screen === "home" && (
-        <section className="calmHome">
-          <div className="ambientOrb orbOne" />
-          <div className="ambientOrb orbTwo" />
-          <div className="homeContent">
-            <span className="softLabel">VOTRE COPILOTE IMMOBILIER</span>
-            <h1>Que se passe-t-il aujourd’hui&nbsp;?</h1>
-            <p>Expliquez simplement la situation. ImmoBoost trouve la bonne marche à suivre.</p>
-            <div className="situationBox">
-              <textarea value={situation} onChange={(e) => setSituation(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); diagnose(); } }} placeholder="Ex. Mon vendeur trouve mes honoraires trop élevés…" />
-              <button onClick={() => diagnose()} disabled={!situation.trim()}>Continuer <span>→</span></button>
-            </div>
-            <div className="quickStarts">
-              {quickStarts.map((item) => <button key={item} onClick={() => diagnose(item)}>{item}</button>)}
-            </div>
-            <div className="quietPromise"><span>✦</span><p>Une demande. Une recommandation claire. Les supports prêts juste après.</p></div>
-          </div>
-        </section>
-      )}
+      <section id="top" className="cockpitHero">
+        <div className="scene3d" aria-hidden="true">
+          <div className="brainOrb"><span>Mission Brain</span></div>
+          <div className="orbit orbitOne" />
+          <div className="orbit orbitTwo" />
+          <div className="floatingPanel panelOne">Texte</div>
+          <div className="floatingPanel panelTwo">Micro</div>
+          <div className="floatingPanel panelThree">Photo</div>
+        </div>
 
-      {screen === "diagnosis" && recommendation && (
-        <section className="diagnosisScreen">
-          <button className="ghostBack" onClick={reset}>← Revenir</button>
-          <div className="diagnosisIntro">
-            <div className="pulseCore"><span>✦</span></div>
-            <small>SITUATION COMPRISE</small>
-            <h1>{situation}</h1>
-            <p>Je vous recommande de commencer par l’action qui débloquera le plus vite la situation.</p>
-          </div>
-          <div className="recommendationStage">
-            <article className="primaryRecommendation">
-              <span className="recommendationIcon">{recommendation.icon}</span>
-              <div><small>COMMENCEZ PAR CECI</small><h2>{recommendation.title}</h2><p>{recommendation.promise}</p></div>
-              <button onClick={() => startWorkflow(recommendation)}>Préparer pour moi <span>→</span></button>
-            </article>
-            <div className="nextSteps">
-              <article><span>1</span><div><strong>Répondez à quelques questions</strong><p>Uniquement ce qui change réellement la réponse.</p></div></article>
-              <article><span>2</span><div><strong>Recevez votre kit complet</strong><p>Plan, message, script, checklist ou contenu selon le besoin.</p></div></article>
-              <article><span>3</span><div><strong>Exécutez avec votre IA</strong><p>ChatGPT, Gemini ou Claude, sans coût API pour ImmoBoost.</p></div></article>
-            </div>
-          </div>
-        </section>
-      )}
+        <div className="heroCopy">
+          <span className="eyebrow">Agent Daily v0.8 · Copilote métier immobilier</span>
+          <h1>Un cockpit premium pour transformer chaque situation en mission prête à exécuter.</h1>
+          <p>Pas un CRM. Pas un chatbot classique. Agent Daily active les bons experts, prépare le kit complet et protège les crédits jusqu’à la réussite de la mission.</p>
+          <div className="trustRow"><span>store:false</span><span>Crédits signés serveur</span><span>BE · FR · LU · CH · CA · Afrique francophone</span></div>
+        </div>
 
-      {screen === "workflow" && active && (
-        <section className="focusScreen">
-          <button className="ghostBack" onClick={() => setScreen("diagnosis")}>← Revenir à la recommandation</button>
-          <div className="focusHeader"><span>{active.icon}</span><div><small>PRÉPARATION GUIDÉE</small><h1>{active.title}</h1><p>{active.promise}</p></div></div>
-          {!generated ? (
-            <div className="singleTaskCard">
-              <div className="stepLine"><span>01</span><div><strong>Donnez uniquement le contexte utile</strong><p>ImmoBoost s’occupe de la structure, du ton et des garde-fous.</p></div></div>
-              <div className="airyFields">
-                {active.fields.map((field) => <label key={field.id}><span>{field.label}{field.required ? " *" : ""}</span>{field.type === "textarea" ? <textarea value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} /> : field.type === "text" ? <input value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })} placeholder={field.placeholder} /> : <select value={values[field.id] ?? ""} onChange={(e) => setValues({ ...values, [field.id]: e.target.value })}><option value="">Choisir…</option>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}</label>)}
-              </div>
-              <button className="prepareButton" disabled={missingRequired} onClick={() => setGenerated(true)}>Préparer mon kit <span>→</span></button>
-            </div>
-          ) : (
-            <div className="readyLayout">
-              <div className="readyCard">
-                <div className="stepLine"><span>02</span><div><strong>Votre kit est prêt</strong><p>Le brief expert ci-dessous réunit déjà la méthode et les contrôles qualité.</p></div></div>
-                <pre>{prompt}</pre>
-                <button className="subtleButton" onClick={() => navigator.clipboard.writeText(prompt)}>{copied ? "Copié ✓" : "Copier le kit"}</button>
-              </div>
-              <aside className="providerDock"><small>CONTINUER AVEC</small>{providers.map((provider) => <button key={provider.name} onClick={() => launch(provider)}><span>{provider.icon}</span><strong>{provider.name}</strong><b>↗</b></button>)}<p>Le kit est copié automatiquement avant l’ouverture.</p></aside>
-            </div>
-          )}
-        </section>
-      )}
-
-      {screen === "dossiers" && (
-        <section className="simpleDossiers">
-          <button className="ghostBack" onClick={reset}>← Accueil</button>
-          <div className="dossiersTitle"><small>MES DOSSIERS</small><h1>Vos biens, sans bruit autour.</h1><p>Une vue simple pour garder le fil.</p></div>
-          <div className="dossiersGrid">
-            {dossiers.length === 0 ? <div className="emptyDossier"><span>⌂</span><h2>Aucun dossier pour le moment</h2><p>Les prochains sprints ajouteront ici la mémoire complète du bien.</p></div> : dossiers.map((d) => <article key={d.id}><small>{d.stage}</small><h2>{d.name}</h2><p>{d.location}</p></article>)}
+        <div className="missionConsole" id="brain">
+          <div className="consoleHeader">
+            <strong>Mission Brain</strong>
+            <select value={market} onChange={(event) => setMarket(event.target.value as MarketCode)} aria-label="Marché">
+              {marketCodes.map((code) => <option key={code} value={code}>{code} · {markets[code].name}</option>)}
+            </select>
           </div>
-        </section>
-      )}
+          <div className="inputModes" role="tablist" aria-label="Mode de mission">
+            {(["texte", "micro", "photo"] as InputMode[]).map((item) => <button key={item} className={mode === item ? "active" : ""} onClick={() => setMode(item)}>{item === "texte" ? "✍️ Texte" : item === "micro" ? "🎙️ Micro" : "📸 Photo"}</button>)}
+          </div>
+          <textarea value={situation} onChange={(event) => setSituation(event.target.value)} placeholder="Décrivez la situation : vendeur, acheteur, offre, photo, règle locale, document…" />
+          <button className="launchButton" onClick={() => launchMission()} disabled={!situation.trim()}>Générer le kit mission <span>→</span></button>
+          <div className="promptChips">
+            {missionPrompts.map((prompt) => <button key={prompt} onClick={() => launchMission(prompt)}>{prompt}</button>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="dailyActionsSection" aria-label="Actions quotidiennes Agent Daily">
+        <div><span className="eyebrow">Actions du jour</span><h2>Raccourcis métier sans friction.</h2></div>
+        <div className="dailyActionsGrid">
+          {dailyActions.map((action) => <button key={action.id} onClick={() => launchMission(action.prompt)}><span>{action.icon}</span><strong>{action.title}</strong><small>{action.description}</small></button>)}
+        </div>
+      </section>
+
+      <section className="expertsDeck">
+        <div className="sectionTitle"><span className="eyebrow">Activation automatique</span><h2>1 à 3 experts spécialisés par situation.</h2><p>Agent Daily route la mission selon le contexte et ajoute un niveau de prudence réglementaire par marché.</p></div>
+        <div className="expertCards">
+          {kit.experts.map((expert) => <article key={expert.id}><span>{expert.icon}</span><h3>{expert.name.replace("Agent", "Expert")}</h3><p>{expert.scope}</p><small>{expert.trust === "official" ? "Sources officielles requises" : expert.trust === "mixed" ? "Métier + vérifications" : "Méthode métier"}</small></article>)}
+        </div>
+      </section>
+
+      <section id="kit" className="kitSection">
+        <div className="kitHeader"><span className="eyebrow">Kit mission complet</span><h2>{missionReady ? workflow.title : "Prêt dès que la mission est lancée"}</h2><p>{kit.diagnostic}</p></div>
+        <div className="kitGrid">
+          <article><small>Diagnostic</small><p>{kit.diagnostic}</p></article>
+          <article><small>Objectif</small><p>{kit.objective}</p></article>
+          <article><small>Plan</small><ul>{kit.plan.map((item) => <li key={item}>{item}</li>)}</ul></article>
+          <article><small>Email</small><p>{kit.email}</p></article>
+          <article><small>SMS / WhatsApp</small><p>{kit.sms}</p></article>
+          <article><small>Script d’appel</small><ul>{kit.callScript.map((item) => <li key={item}>{item}</li>)}</ul></article>
+          <article><small>Checklist</small><ul>{kit.checklist.map((item) => <li key={item}>{item}</li>)}</ul></article>
+          <article><small>Documents</small><ul>{kit.documents.map((item) => <li key={item}>{item}</li>)}</ul></article>
+          <article><small>Prochaine action</small><p>{kit.nextAction}</p></article>
+          <article className="growthPack"><small>Growth Pack marketing</small><ul>{kit.growthPack.map((item) => <li key={item}>{item}</li>)}</ul></article>
+        </div>
+      </section>
+
+      <section className="opsSection">
+        <article><span>⚙️</span><h3>Moteur IA</h3><p>{kit.engine === "quality" ? "Moteur qualité activé pour photo, négociation ou réglementation." : "Moteur économique activé pour une tâche simple."}</p></article>
+        <article><span>🪙</span><h3>Jetons & coût</h3><p>{kit.usage.totalTokens} jetons estimés · coût API ~{kit.usage.estimatedCost.toFixed(4)} €.</p></article>
+        <article><span>🔐</span><h3>Données</h3><p>{kit.dataPolicy}</p></article>
+        <article><span>🌍</span><h3>Marché</h3><p>{kit.marketProfile.name} · {kit.caution}</p></article>
+      </section>
     </main>
   );
 }
