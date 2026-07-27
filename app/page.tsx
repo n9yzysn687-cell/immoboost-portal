@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ImmersiveField, type ImmersivePhase } from "./components/ImmersiveField";
+import { useEffect, useRef, useState } from "react";
 import { markets, type MarketCode, type buildMissionKit } from "../lib/daily-engine";
 
 type InputMode = "texte" | "micro" | "photo";
+type ImmersivePhase = "idle" | "processing" | "ready";
 type MissionKit = ReturnType<typeof buildMissionKit>;
 type RoomView = "act" | "contact" | "promote" | "secure";
 
@@ -14,6 +14,7 @@ type DailySignal = {
   dossier: string;
   label: string;
   result: string;
+  reason: string;
   prompt: string;
   accent: string;
 };
@@ -25,6 +26,7 @@ const dailySignals: DailySignal[] = [
     dossier: "Dossier Leroy",
     label: "Relancer le vendeur",
     result: "Il consulte deux autres agences",
+    reason: "Le rendez-vous est encore frais. Une relance structurée aujourd’hui garde l’élan et protège le mandat.",
     prompt: "Après notre rendez-vous, Monsieur Leroy veut attendre avant de signer le mandat car il consulte deux autres agences. Prépare la meilleure suite et la relance.",
     accent: "10:30",
   },
@@ -34,6 +36,7 @@ const dailySignals: DailySignal[] = [
     dossier: "Bien · Uccle",
     label: "Finaliser la mise en ligne",
     result: "PEB et charges à contrôler",
+    reason: "Deux informations bloquent la publication. Les valider maintenant permet de diffuser le bien aujourd’hui.",
     prompt: "Je dois lancer aujourd’hui un appartement à Uccle. L’annonce, les publications et les points PEB et charges doivent être prêts et vérifiés.",
     accent: "12:00",
   },
@@ -43,6 +46,7 @@ const dailySignals: DailySignal[] = [
     dossier: "Offre Martin",
     label: "Répondre à l’acquéreur",
     result: "Offre valable jusqu’à 17 h",
+    reason: "L’offre expire aujourd’hui. Le vendeur doit recevoir une recommandation claire avant toute réponse.",
     prompt: "Une offre jugée trop basse doit recevoir une réponse avant 17 h. Prépare la stratégie, les arguments et les messages pour le vendeur et l’acquéreur.",
     accent: "17:00",
   },
@@ -54,15 +58,16 @@ const nextAppointment: DailySignal = {
   dossier: "Sophie Martin",
   label: "Estimation vendeur",
   result: "Préparation prête",
+  reason: "Objectif : obtenir le mandat et anticiper les objections sur le prix et les honoraires.",
   prompt: "Je prépare un rendez-vous d’estimation avec Sophie Martin à 14 h. Je veux obtenir le mandat et anticiper les objections sur le prix et les honoraires.",
   accent: "14:00",
 };
 
 const roomViews: { id: RoomView; label: string; verb: string }[] = [
-  { id: "act", label: "Faire", verb: "Maintenant" },
-  { id: "contact", label: "Contacter", verb: "Envoyer" },
-  { id: "promote", label: "Diffuser", verb: "Publier" },
-  { id: "secure", label: "Sécuriser", verb: "Vérifier" },
+  { id: "act", label: "Décider", verb: "Action" },
+  { id: "contact", label: "Envoyer", verb: "Messages" },
+  { id: "promote", label: "Publier", verb: "Contenu" },
+  { id: "secure", label: "Vérifier", verb: "Dossier" },
 ];
 
 function Icon({ name }: { name: "pen" | "mic" | "photo" | "arrow" | "copy" | "share" | "download" | "calendar" | "close" | "mail" | "message" | "phone" | "check" }) {
@@ -111,14 +116,6 @@ export default function Home() {
     setCaptureOpen(true);
     window.setTimeout(() => textarea.current?.focus(), 520);
   }, []);
-
-  const focus = selectedSignal?.index ?? -1;
-  const stageLabel = useMemo(() => {
-    if (phase === "processing") return "Composition en cours";
-    if (phase === "ready") return "Mission livrée";
-    if (selectedSignal) return selectedSignal.label;
-    return "Journée ouverte";
-  }, [phase, selectedSignal]);
 
   function openSignal(signal: DailySignal | null) {
     setSelectedSignal(signal);
@@ -273,9 +270,7 @@ export default function Home() {
 
   return (
     <main className={`experience phase-${phase} ${captureOpen ? "capture-open" : ""}`}>
-      <ImmersiveField phase={phase} focus={focus} />
-      <div className="filmGrain" aria-hidden="true" />
-      <div className="lightSweep" aria-hidden="true" />
+      <div className="ambientBackdrop" aria-hidden="true"><i /><i /><i /></div>
 
       <header className="topbar">
         <button className="brand" onClick={resetMission} aria-label="Revenir à l’accueil">
@@ -283,43 +278,84 @@ export default function Home() {
           <strong>ImmoBoost</strong>
         </button>
         <div className="topbarTools">
-          <a className="guideLink" href="/situations">Guides terrain</a>
-          <span className="launchMarket">BE · FR</span>
-          <a className="boostPill" href="/invite/daily-vendeur" aria-label="Solde : 250 Boosts"><span>250</span><small>Boosts</small></a>
+          <span className="launchMarket">Belgique</span>
+          <a className="guideLink" href="/situations">Guides utiles</a>
         </div>
       </header>
 
-      <section className="world" aria-label="Cockpit quotidien">
-        <div className="worldCopy">
-          <span className="stageLabel"><i /> {stageLabel}</span>
-          <h1>{phase === "ready" ? "Mission prête." : phase === "processing" ? "On s’en charge." : selectedSignal ? selectedSignal.label : <>3 choses comptent<br />aujourd’hui.</>}</h1>
-          <p>{phase === "ready" ? "Il ne reste qu’à agir." : phase === "processing" ? "Contexte, faits, stratégie, ton." : selectedSignal ? "Ajoutez seulement ce qui compte." : "Briefing démo · Belgique francophone"}</p>
-        </div>
+      <section className="dailyStage" aria-label="Cockpit quotidien">
 
         {phase === "idle" ? (
-          <div className="orbitScene" aria-hidden={captureOpen}>
-            <div className="orbitHalo haloA" />
-            <div className="orbitHalo haloB" />
-            <div className="dailyCore" aria-hidden="true"><span>IB</span><i /><b /></div>
-            <div className="signalNodes">
-              {dailySignals.map((signal) => (
-                <button key={signal.id} className={`signalNode node-${signal.index}`} onClick={() => openSignal(signal)} tabIndex={captureOpen ? -1 : 0}>
-                  <small>{signal.accent}</small>
-                  <strong>{signal.dossier}</strong>
-                  <span>{signal.label}</span>
-                  <em>{signal.result}</em>
-                  <i>↗</i>
-                </button>
-              ))}
-              <button className="signalNode appointmentNode node-3" onClick={() => openSignal(nextAppointment)} tabIndex={captureOpen ? -1 : 0}>
-                <small>{nextAppointment.accent}</small>
-                <strong>{nextAppointment.dossier}</strong>
-                <span>{nextAppointment.label}</span>
-                <em>{nextAppointment.result}</em>
-                <i>↗</i>
-              </button>
+          <div className="briefingShell" aria-hidden={captureOpen}>
+            <div className="briefingHead">
+              <div>
+                <span className="eyebrow"><i /> Briefing prêt</span>
+                <h1>Aujourd’hui</h1>
+                <p>Trois actions méritent votre attention.</p>
+              </div>
+              <span className="demoNotice">Données de démonstration</span>
             </div>
-            <button className="otherSignal" onClick={() => openSignal(null)} tabIndex={captureOpen ? -1 : 0}><span>+</span> Nouvelle situation</button>
+
+            <div className="briefingGrid">
+              <div className="attentionQueue">
+                <article className="primaryPriority">
+                  <div className="priorityMeta">
+                    <span><i /> Priorité 1</span>
+                    <time>{dailySignals[0].accent}</time>
+                  </div>
+                  <div className="priorityTitle">
+                    <small>{dailySignals[0].dossier}</small>
+                    <h2>{dailySignals[0].label}</h2>
+                    <p>{dailySignals[0].result}</p>
+                  </div>
+                  <div className="priorityReason">
+                    <small>Pourquoi maintenant</small>
+                    <p>{dailySignals[0].reason}</p>
+                  </div>
+                  <button className="priorityAction" onClick={() => openSignal(dailySignals[0])} tabIndex={captureOpen ? -1 : 0}>
+                    <span>Préparer la relance</span><Icon name="arrow" />
+                  </button>
+                </article>
+
+                <div className="secondaryPriorities" aria-label="Autres priorités">
+                  {dailySignals.slice(1).map((signal, index) => (
+                    <button key={signal.id} className="attentionRow" onClick={() => openSignal(signal)} tabIndex={captureOpen ? -1 : 0}>
+                      <span className="rowNumber">0{index + 2}</span>
+                      <div>
+                        <small>{signal.dossier} · {signal.accent}</small>
+                        <strong>{signal.label}</strong>
+                        <span>{signal.result}</span>
+                      </div>
+                      <Icon name="arrow" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <aside className="dayRail">
+                <section className="appointmentCard">
+                  <div className="railLabel"><span>Prochain rendez-vous</span><time>{nextAppointment.accent}</time></div>
+                  <h3>{nextAppointment.dossier}</h3>
+                  <p>{nextAppointment.label}</p>
+                  <small>{nextAppointment.reason}</small>
+                  <button onClick={() => openSignal(nextAppointment)} tabIndex={captureOpen ? -1 : 0}>Ouvrir la préparation <Icon name="arrow" /></button>
+                </section>
+
+                <section className="preparedCard">
+                  <div className="railLabel"><span>Déjà préparé</span><b>2</b></div>
+                  <ul>
+                    <li><i /><div><strong>Réponse après-visite</strong><span>Prête à envoyer</span></div></li>
+                    <li><i /><div><strong>Script d’estimation</strong><span>Sauvegardé sur cet appareil</span></div></li>
+                  </ul>
+                </section>
+              </aside>
+            </div>
+
+            <button className="situationLauncher" onClick={() => openSignal(null)} tabIndex={captureOpen ? -1 : 0}>
+              <span className="launcherPlus">+</span>
+              <span><strong>Que vient-il de se passer&nbsp;?</strong><small>Expliquez la situation par texte, voix ou photo.</small></span>
+              <Icon name="arrow" />
+            </button>
           </div>
         ) : null}
 
@@ -328,7 +364,7 @@ export default function Home() {
             {captureOpen ? (
               <div className="captureCard">
                 <div className="captureHead">
-                  <div><small>{selectedSignal ? selectedSignal.accent : "LIBRE"}</small><strong>{selectedSignal?.result ?? "Décrivez la situation"}</strong></div>
+                  <div><small>{selectedSignal?.dossier ?? "Nouvelle situation"}</small><strong>{selectedSignal?.label ?? "Que vient-il de se passer ?"}</strong></div>
                   <button onClick={closeCapture} aria-label="Fermer"><Icon name="close" /></button>
                 </div>
                 <textarea
@@ -336,7 +372,7 @@ export default function Home() {
                   value={situation}
                   onChange={(event) => setSituation(event.target.value)}
                   onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") launchMission(); }}
-                  placeholder="Dites ce qui se passe, comme à un collègue…"
+                  placeholder="Décrivez les faits, comme à un collègue…"
                   aria-label="Décrivez votre situation"
                 />
                 {photoName ? <div className="attachment"><Icon name="photo"/><span>{photoName}</span><button onClick={() => setPhotoName("")} aria-label="Retirer la photo"><Icon name="close"/></button></div> : null}
@@ -353,7 +389,7 @@ export default function Home() {
                     <button className={mode === "micro" ? "active listening" : ""} onClick={() => chooseMode("micro")} aria-label={listening ? "Écoute en cours" : "Dicter"}><Icon name="mic"/></button>
                     <button className={mode === "photo" ? "active" : ""} onClick={() => chooseMode("photo")} aria-label="Ajouter une photo"><Icon name="photo"/></button>
                   </div>
-                  <button className="launchButton" onClick={launchMission} disabled={!situation.trim()}><span>Préparer</span><Icon name="arrow"/></button>
+                  <button className="launchButton" onClick={launchMission} disabled={!situation.trim()}><span>Préparer l’action</span><Icon name="arrow"/></button>
                 </div>
               </div>
             ) : null}
@@ -361,11 +397,15 @@ export default function Home() {
         ) : null}
 
         {phase === "processing" ? (
-          <div className="transitView" role="status" aria-live="polite">
-            <div className="transitTunnel"><span /><span /><span /><b>IB</b></div>
-            <div className="transitTrack"><i className="active"/><i/><i/></div>
-            <p>Comprendre <b>·</b> Préparer <b>·</b> Livrer</p>
-            <small>Aucun Boost utilisé avant la livraison</small>
+          <div className="workProgress" role="status" aria-live="polite">
+            <span className="eyebrow"><i /> Préparation en cours</span>
+            <h2>ImmoBoost prépare la prochaine action.</h2>
+            <ol>
+              <li className="active"><i />Comprendre la situation</li>
+              <li><i />Vérifier les faits utiles</li>
+              <li><i />Préparer l’action et le suivi</li>
+            </ol>
+            <small>Les données de cette démo ne sont pas conservées.</small>
           </div>
         ) : null}
 
@@ -382,7 +422,10 @@ export default function Home() {
 
             <div className="roomHeading">
               <div><small>Résultat</small><h2>{kit.objective}</h2></div>
-              <div className="boostReceipt"><strong>1</strong><span>Boost<br/>utilisé</span></div>
+              <div className="qualitySeal">
+                <i><Icon name="check" /></i>
+                <span><strong>{kit.references.length ? "Sources officielles" : "Contexte contrôlé"}</strong><small>{kit.references[0]?.checkedAt ?? "Belgique francophone"}</small></span>
+              </div>
             </div>
 
             <nav className="roomNav" aria-label="Actions de la mission">
@@ -457,7 +500,7 @@ export default function Home() {
         ) : null}
       </section>
 
-      <footer className="trustLine"><span>1 mission livrée = 1 Boost</span><i /><span>Échec = 0 Boost</span></footer>
+      <footer className="trustLine"><span>Données de la démo non conservées</span><i /><a href="/methode">Méthode et sources</a></footer>
       {status ? <div className="toast" role="status">{status}</div> : null}
     </main>
   );
