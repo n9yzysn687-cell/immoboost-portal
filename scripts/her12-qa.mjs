@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const root = process.cwd();
 const her12 = path.join(root, 'public', 'her12');
 const mustExist = [
-  'index.html', 'styles-v2.css', 'program-v2.js', 'runtime-v2.js',
+  'index.html', 'styles-v2.css', 'enhancements-v3.css', 'program-v2.js', 'runtime-v2.js', 'enhancements-v3.js',
   'manifest.webmanifest', 'sw.js', 'icon.svg', 'apple-touch-icon.png'
 ];
 
@@ -66,19 +66,30 @@ for (const file of media) {
 }
 
 const index = fs.readFileSync(path.join(her12, 'index.html'), 'utf8');
-for (const ref of ['styles-v2.css','program-v2.js','runtime-v2.js','manifest.webmanifest','apple-touch-icon.png']) {
+for (const ref of ['styles-v2.css','enhancements-v3.css','program-v2.js','runtime-v2.js','enhancements-v3.js','manifest.webmanifest','apple-touch-icon.png']) {
   if (!index.includes(ref)) fail(`index.html does not reference ${ref}`);
 }
 if (!index.includes('noindex,nofollow,noarchive')) fail('preview privacy robots directive missing');
+if (!index.includes('rel="preload"') || !index.includes('assets/hero.jpg')) fail('critical hero image preload missing');
 
 const runtime = fs.readFileSync(path.join(her12, 'runtime-v2.js'), 'utf8');
 for (const token of ['localStorage','sessionIsComplete','startTimer','normalizeState','pain']) {
   if (!runtime.includes(token)) fail(`runtime missing expected safety/progression primitive: ${token}`);
 }
 
+const enhancements = fs.readFileSync(path.join(her12, 'enhancements-v3.js'), 'utf8');
+for (const token of ['smartTargetCard','wakeLock','storage.persist','WARM_MEDIA','Petit plateau détecté','stopImmediatePropagation']) {
+  if (!enhancements.includes(token)) fail(`v3 enhancement missing expected performance/intelligence primitive: ${token}`);
+}
+try { new vm.Script(runtime); } catch (error) { fail(`runtime-v2.js syntax error: ${error.message}`); }
+try { new vm.Script(enhancements); } catch (error) { fail(`enhancements-v3.js syntax error: ${error.message}`); }
+
 const sw = fs.readFileSync(path.join(her12, 'sw.js'), 'utf8');
 for (const file of media) {
-  if (!sw.includes(`./assets/${file}`)) fail(`service worker does not precache assets/${file}`);
+  if (!sw.includes(`./assets/${file}`)) fail(`service worker does not know assets/${file}`);
+}
+for (const ref of ['./enhancements-v3.css','./enhancements-v3.js','WARM_MEDIA','her12-v6']) {
+  if (!sw.includes(ref)) fail(`service worker missing v3 cache primitive: ${ref}`);
 }
 
-if (!process.exitCode) console.log(`HER12 QA OK: ${sessions.length} sessions, ${ids.size} unique exercises, ${media.size} local images.`);
+if (!process.exitCode) console.log(`HER12 QA OK: ${sessions.length} sessions, ${ids.size} unique exercises, ${media.size} local images, v3 performance layer verified.`);
