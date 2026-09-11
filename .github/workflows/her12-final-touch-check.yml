@@ -1,51 +1,38 @@
-name: HER12 Vercel Boot Diagnostic
+name: HER12 Pages Validation Host
 
 on:
   push:
     branches: [her12-live-check]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: her12-pages-validation
+  cancel-in-progress: true
+
 jobs:
-  diagnose:
-    timeout-minutes: 3
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 4
     steps:
-      - name: Install Playwright
-        run: |
-          npm init -y >/dev/null 2>&1
-          npm install --no-save playwright@1.55.0 >/dev/null 2>&1
-          npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect Vercel HER12 boot
-        run: |
-          cat > boot.mjs <<'EOF'
-          import { chromium } from 'playwright';
-          const browser=await chromium.launch({headless:true});
-          for(const path of ['/her12/','/her12/index.html']){
-            const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-            const page=await context.newPage();
-            const errors=[];
-            page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
-            page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-            page.on('requestfailed',r=>errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||'')));
-            const response=await page.goto('https://immoboost-portal-afjr3ouqu-n9yzysn687-cells-projects.vercel.app'+path+'?boot=1',{waitUntil:'domcontentloaded',timeout:20000});
-            await page.waitForTimeout(4000);
-            const data=await page.evaluate(()=>({
-              url:location.href,
-              title:document.title,
-              statusText:document.body.innerText.slice(0,500),
-              htmlClass:document.documentElement.className,
-              gate:document.querySelectorAll('.v15ProfileGate').length,
-              v14:document.querySelectorAll('script[src*="her12-v14"]').length,
-              v15:document.querySelectorAll('script[src*="her12-v15"]').length,
-              v12:document.querySelectorAll('script[src*="experience-v12"]').length,
-              resources:performance.getEntriesByType('resource').map(e=>e.name).filter(u=>/experience-v12|her12-v1[45]/.test(u)),
-              meta:localStorage.getItem('HER12_META_V15'),
-              profile:localStorage.getItem('HER12_PROFILE_V4')
-            }));
-            console.log('PATH='+path+' HTTP='+response?.status());
-            console.log('DATA='+JSON.stringify(data));
-            console.log('ERRORS='+JSON.stringify(errors));
-            await context.close();
-          }
-          await browser.close();
-          EOF
-          node boot.mjs
+      - name: Checkout HER12 release candidate
+        uses: actions/checkout@v4
+        with:
+          ref: her12-v15-release
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload HER12 only
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/her12
+      - name: Deploy HER12 validation host
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Print validation URL
+        run: echo "HER12_PAGES_URL=${{ steps.deployment.outputs.page_url }}"
