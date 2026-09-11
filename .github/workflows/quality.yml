@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: HER12 release QA
+        run: node scripts/her12-qa.mjs
+
       - name: Install dependencies
         run: npm install
 
