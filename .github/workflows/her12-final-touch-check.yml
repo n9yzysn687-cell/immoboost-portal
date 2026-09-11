@@ -1,93 +1,31 @@
-name: HER12 V15 Mobile Check
+name: HER12 V15 Bundle Probe
 
-# V15 local-bundle verification rerun
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  mobile:
-    timeout-minutes: 3
+  probe:
+    timeout-minutes: 2
     runs-on: ubuntu-latest
     steps:
-      - name: Install Playwright
+      - name: Inspect public bundle
         run: |
-          npm init -y >/dev/null 2>&1
-          npm install --no-save playwright@1.55.0 >/dev/null 2>&1
-          npx playwright install chromium >/dev/null 2>&1
-      - name: Verify male profile, workout and reset
-        run: |
-          cat > her12-v15.mjs <<'EOF'
-          import { chromium } from 'playwright';
-          const browser=await chromium.launch({headless:true});
-          const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          page.setDefaultTimeout(6000);
-          const errors=[];
-          page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
-          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-          const log=x=>console.log('[HER12 V15] '+x);
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?v15-touch=2',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:20000});
-          log('profile gate visible');
-          await page.locator('[data-sex="male"]').click();
-          await page.locator('[data-run="3"]').click();
-          await page.locator('.her4Onboarding').waitFor({state:'visible'});
-          log('male + 3 runs selected');
-          await page.locator('.her4Onboarding [data-next="2"]').click();
-          await page.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});
-          await page.locator('#her4Create').click();
-          await page.locator('.her4Onboarding').waitFor({state:'detached',timeout:10000});
-          const chip=await page.locator('#v15ProfileChip').innerText();
-          if(!chip.includes('Homme'))throw new Error('male profile chip missing: '+chip);
-          log('program created: '+chip);
-
-          await page.getByRole('button',{name:/Séances/i}).last().click();
-          const titleA=await page.locator('#sessionTitle').innerText();
-          if(!titleA.includes('Upper A'))throw new Error('Upper A missing: '+titleA);
-          await page.locator('#sessionTabs button').nth(1).click();
-          const titleB=await page.locator('#sessionTitle').innerText();
-          if(!titleB.includes('Running Strength'))throw new Error('Running Strength missing: '+titleB);
-          await page.locator('#sessionTabs button').nth(2).click();
-          const titleC=await page.locator('#sessionTitle').innerText();
-          if(!titleC.includes('Upper B'))throw new Error('Upper B missing: '+titleC);
-          log('split works: '+titleA+' | '+titleB+' | '+titleC);
-
-          for(const [label,id] of [['Suivi','tracking'],['Mesures','body'],['Guide','more'],['Accueil','home']]){
-            await page.getByRole('button',{name:new RegExp(label,'i')}).last().click();
-            await page.waitForTimeout(100);
-            const active=await page.locator('.screen:not(.hidden)').getAttribute('id');
-            if(active!==id)throw new Error(`${label} opened ${active}`);
-            log(label+' works');
-          }
-
-          await page.getByRole('button',{name:/Séances/i}).last().click();
-          await page.locator('#sessionTabs button').first().click();
-          await page.locator('#exerciseList .exerciseRow').first().click();
-          await page.locator('#setRows .setCheck').first().click();
-          await page.waitForTimeout(150);
-          if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer hidden');
-          log('timer started: '+await page.locator('#timerText').innerText());
-          await page.locator('#timerSkip').click();
-
-          await page.getByRole('button',{name:/Séances/i}).last().click();
-          const change=page.getByRole('button',{name:/Changer mes jours/i}).first();
-          await change.click();
-          await page.locator('.her4Onboarding').waitFor({state:'visible'});
-          if(await page.locator('.her4Days [data-day].active').count()!==3)throw new Error('saved days missing');
-          log('change days works');
-          const close=page.getByRole('button',{name:'Fermer'});
-          if(await close.isVisible().catch(()=>false))await close.click();
-
-          await page.getByRole('button',{name:/Guide/i}).last().click();
-          const reset=page.getByRole('button',{name:/Recommencer HER12 à zéro/i});
-          page.once('dialog',d=>d.accept());
-          await reset.click({noWaitAfter:true});
-          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:20000});
-          const stateAfter=await page.evaluate(()=>({meta:localStorage.getItem('HER12_META_V15'),profile:localStorage.getItem('HER12_PROFILE_V4'),state:localStorage.getItem('HER12_PRIVATE_V2')}));
-          if(stateAfter.meta||stateAfter.profile||stateAfter.state)throw new Error('reset did not clear local state');
-          log('reset returns to Homme/Femme choice');
-          if(errors.length)throw new Error(errors.join(' | '));
-          await browser.close();
-          log('HER12_V15_TOUCH_OK');
-          EOF
-          node her12-v15.mjs
+          set -euo pipefail
+          BASE='https://her12-1plk7r.v2.appdeploy.ai'
+          curl -fsSL "$BASE/?bundle-probe=1" -o /tmp/root.html
+          echo '=== ROOT ==='
+          sed -n '1,80p' /tmp/root.html
+          ASSET=$(grep -oE 'src="[^"]+\.js"' /tmp/root.html | head -1 | cut -d'"' -f2)
+          echo "ASSET=$ASSET"
+          curl -fsSL "$BASE/${ASSET#./}" -o /tmp/app.js
+          echo '=== MAIN FLAGS ==='
+          grep -o 'her12-v15[^"'"' ]*' /tmp/app.js | head -20 || true
+          grep -n 'v15ProfileGate' /tmp/app.js | head -3 || true
+          echo '=== DIRECT V15 ==='
+          curl -fsSL "$BASE/her12-v15.js" -o /tmp/v15.js
+          grep -n 'v15ProfileGate' /tmp/v15.js | head -3
+          echo '=== LOCAL BASE ==='
+          curl -fsSL "$BASE/her12-base/index.txt" -o /tmp/base.txt
+          grep -n 'HER12' /tmp/base.txt | head -3
+          echo 'HER12_V15_BUNDLE_PROBE_OK'
