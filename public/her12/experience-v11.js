@@ -2,13 +2,23 @@
   const q=s=>document.querySelector(s),qq=s=>[...document.querySelectorAll(s)];
   let restWasRunning=false;
 
+  /* Research-backed practical rest targets.
+     Longer rests protect performance on demanding compound lifts; smaller movements stay compact. */
+  const REST_PROFILE={
+    hip:150,rdl:150,bulg:120,abd:90,
+    lat:120,row:120,chest:120,tri:90,raise:75,ohtri:90,pallof:75,
+    press:150,hip2:120,step:120,kick:75,abs:90
+  };
+  Object.values(PROGRAM).forEach(session=>session.ex.forEach(ex=>{if(REST_PROFILE[ex.id])ex.rest=REST_PROFILE[ex.id]}));
+
   function rows(){return qq('#setRows .setRow')}
   function checks(){return qq('#setRows .setCheck')}
   function firstOpenIndex(){return checks().findIndex(x=>!x.classList.contains('done'))}
   function allDone(){const c=checks();return c.length>0&&c.every(x=>x.classList.contains('done'))}
+  function fmtRest(sec){const m=Math.floor(sec/60),s=sec%60;return s?`${m}:${String(s).padStart(2,'0')}`:`${m} min`}
 
   function guideSets({scroll=false}={}){
-    const rs=rows(),cs=checks();if(!rs.length)return;
+    const rs=rows(),cs=checks(),ex=getCurrentExercise();if(!rs.length||!ex)return;
     const active=firstOpenIndex(),done=cs.filter(x=>x.classList.contains('done')).length;
     rs.forEach((row,i)=>{
       row.classList.toggle('v11SetDone',cs[i]?.classList.contains('done'));
@@ -18,8 +28,8 @@
     let hint=q('#v11SetGuide');
     if(!hint){hint=document.createElement('div');hint.id='v11SetGuide';hint.className='v11SetGuide';q('#setRows')?.insertAdjacentElement('beforebegin',hint)}
     if(hint){
-      if(done===rs.length)hint.innerHTML='<strong>Séries terminées ✓</strong><span>Indique simplement ton ressenti puis continue.</span>';
-      else hint.innerHTML=`<strong>Série ${active+1} / ${rs.length}</strong><span>Fais les reps prévues, puis coche ✓. Le repos démarre automatiquement.</span>`;
+      if(done===rs.length)hint.innerHTML='<strong>Tout est fait ✓</strong><span>Choisis ton ressenti, puis passe à l’exercice suivant.</span>';
+      else hint.innerHTML=`<strong>Série ${active+1} / ${rs.length}</strong><span>${ex.min}–${ex.max} reps · puis ✓ · repos ${fmtRest(ex.rest)}</span>`;
     }
     if(scroll&&active>=0)rs[active]?.scrollIntoView({behavior:'smooth',block:'center'});
   }
@@ -34,8 +44,9 @@
   function setRestMode(on,scroll=false){
     document.documentElement.classList.toggle('her11-resting',Boolean(on));
     const label=timerNextLabel(),next=firstOpenIndex(),total=checks().length;
+    const title=q('#restTimer .muted');if(title)title.textContent=on?'Repos recommandé':'Repos';
     if(label)label.textContent=on&&next>=0?`Puis série ${next+1} / ${total}`:'';
-    if(!on&&scroll){guideSets({scroll:true})}
+    if(!on&&scroll)guideSets({scroll:true});
   }
 
   const startTimer0=startTimer;
