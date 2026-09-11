@@ -62,8 +62,12 @@ jobs:
             if(!await page.locator('#backExercise').isVisible())throw new Error('workout back button missing');
             await page.locator('#backExercise').click();
             await page.locator('#program').waitFor({state:'visible'});
-            for(const nav of ['tracking','body','more','home','program']){await page.locator(`.bottom .nav[data-nav="${nav}"]`).click();if(await page.locator('#'+nav).count()&&await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('nav failed '+nav)}
-            out('bottom navigation OK after leaving focused workout');
+            for(const nav of ['tracking','more','home','program']){await page.locator(`.bottom .nav[data-nav="${nav}"]`).click();if(await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('nav failed '+nav)}
+            await page.locator('.bottom .nav[data-nav="tracking"]').click();
+            await page.locator('#v5Measures').waitFor({state:'visible'});
+            await page.locator('#v5Measures').click();
+            if(await page.locator('#body').evaluate(el=>el.classList.contains('hidden')))throw new Error('Suivi to Mesures navigation failed');
+            out('bottom navigation + Suivi to Mesures OK');
             await page.reload({waitUntil:'domcontentloaded',timeout:15000});await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
             if(await page.locator('.v15ProfileGate').isVisible().catch(()=>false))throw new Error('returning user was incorrectly forced through gate');
             await page.locator('#v14HomeSettings').click();await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
