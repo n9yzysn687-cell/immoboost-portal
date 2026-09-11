@@ -1,5 +1,6 @@
 name: HER12 V15 Mobile Check
 
+# V15 local-bundle verification rerun
 on:
   push:
     branches: [her12-live-check]
@@ -25,7 +26,7 @@ jobs:
           page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
           page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
           const log=x=>console.log('[HER12 V15] '+x);
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?v15-touch=1',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?v15-touch=2',{waitUntil:'domcontentloaded',timeout:15000});
           await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:20000});
           log('profile gate visible');
           await page.locator('[data-sex="male"]').click();
