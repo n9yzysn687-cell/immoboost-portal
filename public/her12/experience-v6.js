@@ -90,7 +90,11 @@
   }
   const summary0=renderSummary;renderSummary=function(){summary0();addCooldown()};
 
-  /* Clean completed/dead deferred flags when the related exercise was eventually logged. */
   Object.keys(flow.deferred).forEach(key=>{if(state.records[key])delete flow.deferred[key]});saveFlow();
   renderHome();
+})();
+
+(()=>{
+  if(!document.querySelector('link[href="./experience-v7.css"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='./experience-v7.css';document.head.appendChild(l)}
+  if(!document.querySelector('script[src="./experience-v7.js"]')){const s=document.createElement('script');s.src='./experience-v7.js';s.async=false;document.body.appendChild(s)}
 })();
