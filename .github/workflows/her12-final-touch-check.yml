@@ -1,12 +1,12 @@
-name: HER12 Vercel Mobile Acceptance
+name: HER12 Vercel Boot Diagnostic
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  validate:
-    timeout-minutes: 4
+  diagnose:
+    timeout-minutes: 3
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -14,82 +14,38 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Validate fresh, returning, male and female flows on Vercel
+      - name: Inspect Vercel HER12 boot
         run: |
-          cat > her12-vercel-acceptance.mjs <<'EOF'
+          cat > boot.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const BASE='https://immoboost-portal-afjr3ouqu-n9yzysn687-cells-projects.vercel.app/her12/';
           const browser=await chromium.launch({headless:true});
-          const mobile={viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true};
-          const out=s=>console.log('[HER12] '+s);
-          const capture=(page,errors)=>{
-            page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
+          for(const path of ['/her12/','/her12/index.html']){
+            const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+            const page=await context.newPage();
+            const errors=[];
+            page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
             page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-            page.on('requestfailed',r=>{if(r.url().includes('vercel.app'))errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||''))});
-          };
-          async function daysAndCreate(page){
-            const root=page.locator('.her4Onboarding');
-            await root.waitFor({state:'visible',timeout:15000});
-            for(const day of ['0','2','4']){
-              const b=root.locator(`.her4Days [data-day="${day}"]`);
-              if(!await b.evaluate(el=>el.classList.contains('active')))await b.click();
-            }
-            await root.locator('[data-step="1"] [data-next="2"]').click();
-            await root.locator('.her4Step[data-step="3"]').waitFor({state:'visible',timeout:7000});
-            await root.locator('#her4Create').click({noWaitAfter:true});
-            await root.waitFor({state:'detached',timeout:12000});
-            await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:12000});
-          }
-          async function freshMaleAndReturning(){
-            const context=await browser.newContext(mobile);const page=await context.newPage();page.setDefaultTimeout(9000);const errors=[];capture(page,errors);
-            const response=await page.goto(BASE+'?acceptance=vercel-male',{waitUntil:'domcontentloaded',timeout:20000});
-            if(!response||response.status()>=400)throw new Error('Vercel preview HTTP '+response?.status());
-            const gate=page.locator('.v15ProfileGate');await gate.waitFor({state:'visible',timeout:15000});
-            if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('Femme/Homme choice missing');
-            out('fresh gate shows Femme + Homme');
-            await page.locator('[data-sex="male"]').click();
-            await page.locator('[data-run="3"]').waitFor({state:'visible'});await page.locator('[data-run="3"]').click();
-            await daysAndCreate(page);
-            const chip=await page.locator('#v15ProfileChip').innerText();if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('male chip wrong: '+chip);
-            const size=await page.evaluate(()=>({w:innerWidth,h:innerHeight}));if(size.w!==390||size.h!==844)throw new Error('viewport expanded '+JSON.stringify(size));
-            out('male profile created; viewport 390x844');
-            await page.locator('.bottom .nav[data-nav="program"]').click();
-            const titles=[];for(let i=0;i<3;i++){await page.locator('#sessionTabs button').nth(i).click();titles.push(await page.locator('#sessionTitle').innerText())}
-            if(!titles[0].includes('Upper A')||!titles[1].includes('Running Strength')||!titles[2].includes('Upper B'))throw new Error('male split wrong: '+titles.join(' | '));
-            out('male split OK');
-            await page.locator('#sessionTabs button').first().click();await page.locator('#exerciseList .exerciseRow').first().click();
-            if(await page.locator('#v6Warmup').isVisible().catch(()=>false))await page.locator('#v6Warmup [data-warm="skip"]').click();
-            await page.locator('#setRows .setCheck').first().click();await page.waitForTimeout(150);
-            if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer did not start');
-            await page.locator('#timerSkip').click();out('exercise touch + timer OK');
-            await page.locator('#backExercise').click();await page.locator('#program').waitFor({state:'visible'});
-            for(const nav of ['tracking','more','home','program']){await page.locator(`.bottom .nav[data-nav="${nav}"]`).click();if(await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('nav failed '+nav)}
-            await page.locator('.bottom .nav[data-nav="tracking"]').click();
-            await page.locator('#v5Measures').waitFor({state:'visible'});await page.locator('#v5Measures').click();
-            if(await page.locator('#body').evaluate(el=>el.classList.contains('hidden')))throw new Error('Suivi to Mesures failed');
-            out('navigation + Suivi to Mesures OK');
-            await page.reload({waitUntil:'domcontentloaded',timeout:20000});await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
-            if(await page.locator('.v15ProfileGate').isVisible().catch(()=>false))throw new Error('returning user forced through profile gate');
-            await page.locator('#v14HomeSettings').click();await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
-            page.once('dialog',d=>d.accept());await page.locator('#v15ChangeProfile').click({noWaitAfter:true});
-            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
-            if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('profile chooser missing after change profile');
-            out('returning user can return to Femme/Homme choice');
-            if(errors.length)throw new Error(errors.join(' | '));
+            page.on('requestfailed',r=>errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||'')));
+            const response=await page.goto('https://immoboost-portal-afjr3ouqu-n9yzysn687-cells-projects.vercel.app'+path+'?boot=1',{waitUntil:'domcontentloaded',timeout:20000});
+            await page.waitForTimeout(4000);
+            const data=await page.evaluate(()=>({
+              url:location.href,
+              title:document.title,
+              statusText:document.body.innerText.slice(0,500),
+              htmlClass:document.documentElement.className,
+              gate:document.querySelectorAll('.v15ProfileGate').length,
+              v14:document.querySelectorAll('script[src*="her12-v14"]').length,
+              v15:document.querySelectorAll('script[src*="her12-v15"]').length,
+              v12:document.querySelectorAll('script[src*="experience-v12"]').length,
+              resources:performance.getEntriesByType('resource').map(e=>e.name).filter(u=>/experience-v12|her12-v1[45]/.test(u)),
+              meta:localStorage.getItem('HER12_META_V15'),
+              profile:localStorage.getItem('HER12_PROFILE_V4')
+            }));
+            console.log('PATH='+path+' HTTP='+response?.status());
+            console.log('DATA='+JSON.stringify(data));
+            console.log('ERRORS='+JSON.stringify(errors));
             await context.close();
           }
-          async function freshFemale(){
-            const context=await browser.newContext(mobile);const page=await context.newPage();page.setDefaultTimeout(9000);const errors=[];capture(page,errors);
-            const response=await page.goto(BASE+'?acceptance=vercel-female',{waitUntil:'domcontentloaded',timeout:20000});
-            if(!response||response.status()>=400)throw new Error('Vercel preview HTTP '+response?.status());
-            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});await page.locator('[data-sex="female"]').click();await daysAndCreate(page);
-            const chip=await page.locator('#v15ProfileChip').innerText();if(!chip.includes('Femme'))throw new Error('female chip wrong: '+chip);
-            await page.locator('.bottom .nav[data-nav="program"]').click();const titles=[];for(let i=0;i<3;i++){await page.locator('#sessionTabs button').nth(i).click();titles.push(await page.locator('#sessionTitle').innerText())}
-            if(titles.some(t=>/Upper A|Running Strength|Upper B/.test(t)))throw new Error('male plan leaked into female profile: '+titles.join(' | '));
-            out('female program preserved');
-            if(errors.length)throw new Error(errors.join(' | '));
-            await context.close();
-          }
-          await freshMaleAndReturning();await freshFemale();await browser.close();out('HER12_VERCEL_ACCEPTANCE_OK');
+          await browser.close();
           EOF
-          node her12-vercel-acceptance.mjs
+          node boot.mjs
