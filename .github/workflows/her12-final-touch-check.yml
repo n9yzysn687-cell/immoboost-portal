@@ -1,38 +1,50 @@
-name: HER12 Pages Validation Host
+name: HER12 AppDeploy Boot Diagnostic
 
 on:
   push:
     branches: [her12-live-check]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: her12-pages-validation
-  cancel-in-progress: true
-
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Checkout HER12 release candidate
-        uses: actions/checkout@v4
-        with:
-          ref: her12-v15-release
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload HER12 only
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: public/her12
-      - name: Deploy HER12 validation host
-        id: deployment
-        uses: actions/deploy-pages@v4
-      - name: Print validation URL
-        run: echo "HER12_PAGES_URL=${{ steps.deployment.outputs.page_url }}"
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null 2>&1
+      - name: Inspect AppDeploy boot
+        run: |
+          cat > boot.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
+          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+          page.on('requestfailed',r=>errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||'')));
+          const response=await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?diag=overlay-purge',{waitUntil:'domcontentloaded',timeout:20000});
+          console.log('HTTP='+response?.status()+' URL='+page.url());
+          for(const delay of [500,2000,5000]){
+            await page.waitForTimeout(delay);
+            const data=await page.evaluate(()=>({
+              href:location.href,
+              title:document.title,
+              body:document.body?.innerText.slice(0,700),
+              gate:document.querySelectorAll('.v15ProfileGate').length,
+              gateVisible:!!document.querySelector('.v15ProfileGate')&&getComputedStyle(document.querySelector('.v15ProfileGate')).display!=='none',
+              overlayCount:[...document.querySelectorAll('*')].filter(el=>el.tagName.startsWith('APPDEPLOY-OVERLAY-')).length,
+              ready:document.documentElement.className,
+              scripts:[...document.scripts].map(s=>s.src).filter(Boolean),
+              resources:performance.getEntriesByType('resource').map(e=>e.name).filter(u=>/her12-v1[45]|experience-v12|main/.test(u)),
+              meta:localStorage.getItem('HER12_META_V15'),
+              profile:localStorage.getItem('HER12_PROFILE_V4')
+            }));
+            console.log('AFTER='+delay+' '+JSON.stringify(data));
+          }
+          console.log('ERRORS='+JSON.stringify(errors));
+          await browser.close();
+          EOF
+          node boot.mjs
