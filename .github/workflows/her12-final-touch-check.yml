@@ -1,4 +1,4 @@
-name: HER12 Visual Viewport Diagnostic
+name: HER12 Boot Diagnostic
 
 on:
   push:
@@ -14,32 +14,29 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect visual viewport
+      - name: Inspect boot and host overlay
         run: |
-          cat > visual-viewport.mjs <<'EOF'
+          cat > boot-diagnostic.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const browser = await chromium.launch({ headless: true });
-          const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-          const page = await context.newPage();
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?visual-viewport=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
-          const values = await page.evaluate(() => ({
-            innerWidth,
-            innerHeight,
-            outerWidth,
-            outerHeight,
-            screenWidth: screen.width,
-            screenHeight: screen.height,
-            vv: visualViewport ? {
-              width: visualViewport.width,
-              height: visualViewport.height,
-              offsetTop: visualViewport.offsetTop,
-              offsetLeft: visualViewport.offsetLeft,
-              pageTop: visualViewport.pageTop,
-              scale: visualViewport.scale,
-            } : null,
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          page.on('pageerror',e=>console.log('PAGEERROR='+e.message));
+          page.on('console',m=>console.log('CONSOLE_'+m.type()+'='+m.text()));
+          page.on('requestfailed',r=>console.log('REQUESTFAIL='+r.url()+' '+(r.failure()?.errorText||'')));
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?boot-diagnostic=1',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.waitForTimeout(5000);
+          const data=await page.evaluate(()=>({
+            title:document.title,
+            bodyText:document.body.innerText.slice(0,1200),
+            bootStatus:document.querySelector('#bootStatus')?.textContent||null,
+            gateCount:document.querySelectorAll('.v15ProfileGate').length,
+            gateVisible:[...document.querySelectorAll('.v15ProfileGate')].some(el=>{const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'}),
+            htmlClass:document.documentElement.className,
+            layerCount:document.querySelectorAll('script[data-her12-layer]').length,
+            overlays:[...document.querySelectorAll('*')].filter(el=>el.tagName.startsWith('APPDEPLOY-OVERLAY-')).map(el=>({tag:el.tagName,style:el.getAttribute('style'),popover:el.getAttribute('popover'),display:getComputedStyle(el).display,visibility:getComputedStyle(el).visibility,pointer:getComputedStyle(el).pointerEvents}))
           }));
-          console.log('VIEWPORT=' + JSON.stringify(values));
-          await context.close();
-          await browser.close();
+          console.log('BOOT='+JSON.stringify(data));
+          await context.close();await browser.close();
           EOF
-          node visual-viewport.mjs
+          node boot-diagnostic.mjs
