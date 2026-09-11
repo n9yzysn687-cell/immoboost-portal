@@ -18,7 +18,7 @@ jobs:
         run: |
           cat > her12-touch-acceptance.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=real-touch-v1';
+          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=real-touch-v2';
           const browser=await chromium.launch({headless:true});
           const mobile={viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true};
           const out=s=>console.log('[HER12] '+s);
@@ -79,7 +79,12 @@ jobs:
               out('touch nav '+nav+' OK');
             }
             await tap(page,page.locator('.bottom .nav[data-nav="tracking"]'));
-            await tap(page,page.locator('#v5Measures'));
+            const trackingText=await page.locator('#v11Progress').innerText();
+            if(!trackingText.includes('Pectoraux')||!trackingText.includes('Dos vertical')||!trackingText.includes('Dos horizontal')||!trackingText.includes('Épaules')||!trackingText.includes('Jambes'))throw new Error('male Suivi priorities incomplete: '+trackingText.slice(0,700));
+            if(trackingText.includes('Fessiers')||trackingText.includes('Hip Thrust'))throw new Error('female progress goals leaked into male Suivi');
+            out('male Suivi priorities OK');
+            const measures=page.locator('#v11Progress .v11BodyCard button:visible');
+            await tap(page,measures);
             if(await page.locator('#body').evaluate(el=>el.classList.contains('hidden')))throw new Error('Suivi to Mesures failed');
             out('Suivi to Mesures OK');
             await page.reload({waitUntil:'domcontentloaded',timeout:20000});await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
@@ -104,6 +109,11 @@ jobs:
             const titles=[];for(let i=0;i<3;i++){await tap(page,page.locator('#sessionTabs button').nth(i));titles.push(await page.locator('#sessionTitle').innerText())}
             if(titles.some(t=>/Upper A|Running Strength|Upper B/.test(t)))throw new Error('male plan leaked into female profile: '+titles.join(' | '));
             out('female program preserved');
+            await tap(page,page.locator('.bottom .nav[data-nav="tracking"]'));
+            const trackingText=await page.locator('#v11Progress').innerText();
+            if(!trackingText.includes('Fessiers')||!trackingText.includes('Hip Thrust'))throw new Error('female Suivi goals were altered');
+            if(trackingText.includes('Pectoraux')||trackingText.includes('Dos horizontal'))throw new Error('male progress goals leaked into female Suivi');
+            out('female Suivi preserved');
             if(errors.length)throw new Error(errors.join(' | '));
             await context.close();
           }
