@@ -1,4 +1,4 @@
-name: HER12 Boot Diagnostic
+name: HER12 Clean Static Host Diagnostic
 
 on:
   push:
@@ -14,29 +14,22 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect boot and host overlay
+      - name: Inspect jsDelivr HTML delivery
         run: |
-          cat > boot-diagnostic.mjs <<'EOF'
+          cat > static-host.mjs <<'EOF'
           import { chromium } from 'playwright';
+          const url='https://cdn.jsdelivr.net/gh/n9yzysn687-cell/immoboost-portal@697d1adab2b554190eecf84728e6ef5654b08e97/public/her12/index.html';
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
           page.on('pageerror',e=>console.log('PAGEERROR='+e.message));
           page.on('console',m=>console.log('CONSOLE_'+m.type()+'='+m.text()));
-          page.on('requestfailed',r=>console.log('REQUESTFAIL='+r.url()+' '+(r.failure()?.errorText||'')));
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?boot-diagnostic=1',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.waitForTimeout(5000);
-          const data=await page.evaluate(()=>({
-            title:document.title,
-            bodyText:document.body.innerText.slice(0,1200),
-            bootStatus:document.querySelector('#bootStatus')?.textContent||null,
-            gateCount:document.querySelectorAll('.v15ProfileGate').length,
-            gateVisible:[...document.querySelectorAll('.v15ProfileGate')].some(el=>{const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'}),
-            htmlClass:document.documentElement.className,
-            layerCount:document.querySelectorAll('script[data-her12-layer]').length,
-            overlays:[...document.querySelectorAll('*')].filter(el=>el.tagName.startsWith('APPDEPLOY-OVERLAY-')).map(el=>({tag:el.tagName,style:el.getAttribute('style'),popover:el.getAttribute('popover'),display:getComputedStyle(el).display,visibility:getComputedStyle(el).visibility,pointer:getComputedStyle(el).pointerEvents}))
-          }));
-          console.log('BOOT='+JSON.stringify(data));
+          const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:20000});
+          console.log('STATUS='+response?.status());
+          console.log('CONTENT_TYPE='+await response?.headerValue('content-type'));
+          console.log('TITLE='+await page.title());
+          console.log('BODY='+JSON.stringify((await page.locator('body').innerText()).slice(0,250)));
+          console.log('URL='+page.url());
           await context.close();await browser.close();
           EOF
-          node boot-diagnostic.mjs
+          node static-host.mjs
