@@ -1,0 +1,23 @@
+/* HER12 v11 — one set, rest, next */
+.v11SetGuide{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 9px;padding:0 2px}
+.v11SetGuide strong{font-size:12px;color:#fff}
+.v11SetGuide span{max-width:58%;font-size:8.5px;line-height:1.35;text-align:right;color:#8f99a5}
+
+.her11-ready #setRows .setRow{opacity:.42;transform:scale(.985);transition:opacity .14s ease,transform .14s ease,border-color .14s ease,background .14s ease}
+.her11-ready #setRows .setRow.v11SetActive{opacity:1;transform:scale(1);border-color:rgba(255,127,164,.58);background:linear-gradient(90deg,rgba(255,127,164,.10),rgba(255,255,255,.018))}
+.her11-ready #setRows .setRow.v11SetDone{opacity:.38;transform:scale(.98)}
+.her11-ready #setRows .setRow.v11SetLater{opacity:.32}
+.her11-ready #setRows .setRow.v11SetActive .setName{font-weight:900;color:#fff}
+.her11-ready #setRows .setRow.v11SetActive .setCheck{min-width:48px;border-color:#ff7fa1;background:rgba(255,127,161,.08);box-shadow:0 0 0 3px rgba(255,127,161,.05)}
+.her11-ready #setRows .setRow.v11SetDone .setCheck{background:rgba(255,127,161,.12);border-color:rgba(255,127,161,.25);color:#ff9db6}
+.her11-ready #v9SetHint{display:none!important}
+
+.her11-resting #restTimer{border-color:rgba(255,127,164,.46);box-shadow:0 16px 46px rgba(0,0,0,.36),0 0 0 1px rgba(255,127,164,.05) inset;background:linear-gradient(145deg,#171b23,#11151b)}
+.v11TimerNext{font-size:10px;font-weight:900;color:#ff9db6;margin-top:2px}
+.her11-resting #restTimer #timerText{color:#fff}
+.her11-resting #restTimer .progress span{background:linear-gradient(90deg,#ff719a,#a78bfa)}
+
+@media(max-width:380px){
+  .v11SetGuide{gap:8px}.v11SetGuide span{max-width:62%;font-size:8px}
+  .her11-ready #setRows .setRow.v11SetActive .setCheck{min-width:44px}
+}
