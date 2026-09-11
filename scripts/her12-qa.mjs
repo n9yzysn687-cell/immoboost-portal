@@ -1,0 +1,84 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+
+const root = process.cwd();
+const her12 = path.join(root, 'public', 'her12');
+const mustExist = [
+  'index.html', 'styles-v2.css', 'program-v2.js', 'runtime-v2.js',
+  'manifest.webmanifest', 'sw.js', 'icon.svg', 'apple-touch-icon.png'
+];
+
+const fail = (message) => {
+  console.error(`HER12 QA FAIL: ${message}`);
+  process.exitCode = 1;
+};
+
+for (const file of mustExist) {
+  if (!fs.existsSync(path.join(her12, file))) fail(`missing ${file}`);
+}
+
+const programSource = fs.readFileSync(path.join(her12, 'program-v2.js'), 'utf8');
+const sandbox = {};
+vm.createContext(sandbox);
+vm.runInContext(`${programSource}\nthis.__PROGRAM = PROGRAM;`, sandbox);
+const program = sandbox.__PROGRAM;
+
+if (!program || typeof program !== 'object') fail('PROGRAM is not readable');
+const sessions = Object.keys(program || {});
+if (sessions.join(',') !== 'A,B,C') fail(`expected sessions A,B,C; got ${sessions.join(',')}`);
+
+const ids = new Set();
+const media = new Set(['hero.jpg']);
+for (const [sessionId, session] of Object.entries(program || {})) {
+  if (!session.day || !session.name || !session.focus || !session.duration || !session.cardio) {
+    fail(`session ${sessionId} is missing descriptive fields`);
+  }
+  if (!Array.isArray(session.ex) || session.ex.length < 4) fail(`session ${sessionId} has too few exercises`);
+
+  for (const ex of session.ex || []) {
+    const required = ['id','name','img','target','unit','why','feel','alt'];
+    for (const key of required) if (!ex[key]) fail(`${sessionId}/${ex.id || '?'} missing ${key}`);
+    if (ids.has(ex.id)) fail(`duplicate exercise id ${ex.id}`);
+    ids.add(ex.id);
+    media.add(ex.img);
+
+    if (!Array.isArray(ex.sets) || ex.sets.length !== 3 || ex.sets.some(v => !Number.isInteger(v) || v < 0 || v > 6)) {
+      fail(`${sessionId}/${ex.id} has invalid phase sets`);
+    }
+    if (!Number.isFinite(ex.min) || !Number.isFinite(ex.max) || ex.min < 1 || ex.max < ex.min) {
+      fail(`${sessionId}/${ex.id} has invalid rep range`);
+    }
+    if (!Number.isFinite(ex.start) || ex.start < 0 || !Number.isFinite(ex.step) || ex.step < 0) {
+      fail(`${sessionId}/${ex.id} has invalid load calibration`);
+    }
+    if (!Number.isFinite(ex.rest) || ex.rest < 30 || ex.rest > 300) fail(`${sessionId}/${ex.id} has invalid rest time`);
+    if (!Array.isArray(ex.steps) || ex.steps.length !== 5 || ex.steps.some(s => typeof s !== 'string' || !s.trim())) {
+      fail(`${sessionId}/${ex.id} must have exactly five technique steps`);
+    }
+  }
+}
+
+for (const file of media) {
+  const full = path.join(her12, 'assets', file);
+  if (!fs.existsSync(full)) fail(`missing local exercise media assets/${file}`);
+  else if (fs.statSync(full).size < 8_000) fail(`exercise media assets/${file} is suspiciously small`);
+}
+
+const index = fs.readFileSync(path.join(her12, 'index.html'), 'utf8');
+for (const ref of ['styles-v2.css','program-v2.js','runtime-v2.js','manifest.webmanifest','apple-touch-icon.png']) {
+  if (!index.includes(ref)) fail(`index.html does not reference ${ref}`);
+}
+if (!index.includes('noindex,nofollow,noarchive')) fail('preview privacy robots directive missing');
+
+const runtime = fs.readFileSync(path.join(her12, 'runtime-v2.js'), 'utf8');
+for (const token of ['localStorage','sessionIsComplete','startTimer','normalizeState','pain']) {
+  if (!runtime.includes(token)) fail(`runtime missing expected safety/progression primitive: ${token}`);
+}
+
+const sw = fs.readFileSync(path.join(her12, 'sw.js'), 'utf8');
+for (const file of media) {
+  if (!sw.includes(`./assets/${file}`)) fail(`service worker does not precache assets/${file}`);
+}
+
+if (!process.exitCode) console.log(`HER12 QA OK: ${sessions.length} sessions, ${ids.size} unique exercises, ${media.size} local images.`);
