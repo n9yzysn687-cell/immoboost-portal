@@ -1,12 +1,12 @@
-name: HER12 V15 Crash Stack
+name: HER12 V15 Final Touch Check
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  diagnose:
-    timeout-minutes: 3
+  mobile:
+    timeout-minutes: 4
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -14,17 +14,84 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Capture crash stack
+      - name: Verify complete male mobile flow
         run: |
-          cat > her12-stack.mjs <<'EOF'
+          cat > her12-v15-final.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser=await chromium.launch({headless:true});
-          const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-          page.on('pageerror',e=>console.log('PAGEERROR_STACK='+(e.stack||e.message)));
-          page.on('console',m=>{if(m.type()==='error')console.log('CONSOLE_ERROR='+m.text())});
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?stack=1',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.waitForTimeout(4000);
-          console.log('GATE='+await page.locator('.v15ProfileGate').count());
+          const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          page.setDefaultTimeout(7000);
+          const errors=[];
+          page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
+          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+          const log=x=>console.log('[HER12 V15] '+x);
+
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?v15-final=1',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
+          log('Homme/Femme visible');
+          await page.locator('[data-sex="male"]').click();
+          await page.locator('[data-run="3"]').click();
+          await page.locator('.her4Onboarding').waitFor({state:'visible'});
+          log('Homme + 3 sorties course selected');
+
+          await page.locator('.her4Onboarding [data-next="2"]').click();
+          await page.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});
+          await page.locator('#her4Create').click();
+          await page.locator('.her4Onboarding').waitFor({state:'detached',timeout:10000});
+          const chip=await page.locator('#v15ProfileChip').innerText();
+          if(!chip.includes('Homme')) throw new Error('Male profile chip missing: '+chip);
+          log('profile persisted: '+chip);
+
+          await page.getByRole('button',{name:/Séances/i}).last().click();
+          const sessionTitles=[];
+          for(let i=0;i<3;i++){
+            await page.locator('#sessionTabs button').nth(i).click();
+            sessionTitles.push(await page.locator('#sessionTitle').innerText());
+          }
+          if(!sessionTitles[0].includes('Upper A')) throw new Error('Upper A missing');
+          if(!sessionTitles[1].includes('Running Strength')) throw new Error('Running Strength missing');
+          if(!sessionTitles[2].includes('Upper B')) throw new Error('Upper B missing');
+          log('split='+sessionTitles.join(' | '));
+
+          for(const [label,id] of [['Suivi','tracking'],['Mesures','body'],['Guide','more'],['Accueil','home']]){
+            await page.getByRole('button',{name:new RegExp(label,'i')}).last().click();
+            await page.waitForTimeout(100);
+            const active=await page.locator('.screen:not(.hidden)').getAttribute('id');
+            if(active!==id) throw new Error(`${label} opened ${active}`);
+            log(label+' touch OK');
+          }
+
+          await page.getByRole('button',{name:/Séances/i}).last().click();
+          await page.locator('#sessionTabs button').first().click();
+          await page.locator('#exerciseList .exerciseRow').first().click();
+          const coach=await page.locator('#v12Coach').innerText();
+          if(!/Cible HER12/i.test(coach)) throw new Error('Adaptive coach card missing');
+          await page.locator('#setRows .setCheck').first().click();
+          await page.waitForTimeout(200);
+          if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden'))) throw new Error('Rest timer did not start');
+          log('adaptive coach + timer OK: '+await page.locator('#timerText').innerText());
+          await page.locator('#timerSkip').click();
+
+          await page.getByRole('button',{name:/Séances/i}).last().click();
+          await page.getByRole('button',{name:/Changer mes jours/i}).first().click();
+          await page.locator('.her4Onboarding').waitFor({state:'visible'});
+          if(await page.locator('.her4Days [data-day].active').count()!==3) throw new Error('Current training days not retained');
+          log('Changer mes jours OK');
+          const close=page.getByRole('button',{name:'Fermer'});
+          if(await close.isVisible().catch(()=>false)) await close.click();
+
+          await page.getByRole('button',{name:/Guide/i}).last().click();
+          const reset=page.getByRole('button',{name:/Recommencer HER12 à zéro/i});
+          if(!await reset.isVisible()) throw new Error('Full reset missing');
+          page.once('dialog',d=>d.accept());
+          await reset.click({noWaitAfter:true});
+          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
+          const stateAfter=await page.evaluate(()=>({meta:localStorage.getItem('HER12_META_V15'),profile:localStorage.getItem('HER12_PROFILE_V4'),state:localStorage.getItem('HER12_PRIVATE_V2')}));
+          if(stateAfter.meta||stateAfter.profile||stateAfter.state) throw new Error('Full reset did not clear HER12 data');
+          log('reset returns to Homme/Femme');
+
+          if(errors.length) throw new Error(errors.join(' | '));
           await browser.close();
+          log('HER12_V15_FINAL_OK');
           EOF
-          node her12-stack.mjs
+          node her12-v15-final.mjs
