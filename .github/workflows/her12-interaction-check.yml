@@ -18,7 +18,7 @@ jobs:
         run: |
           cat > her12-final.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v20-green-2';
+          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v21';
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage(); page.setDefaultTimeout(12000);
@@ -48,9 +48,10 @@ jobs:
             if(await page.locator('#mWeight').inputValue()!==value)throw new Error('weight save failed '+value);
           }
           async function switchToChooser(){
-            await tap(page.locator('.bottom .nav[data-nav="home"]')); await page.locator('#v15ProfileChip').waitFor({state:'visible'});
+            await tap(page.locator('.bottom .nav[data-nav="more"]'));
+            const switcher=page.locator('#v15ChangeProfile'); await switcher.waitFor({state:'visible',timeout:12000});
             const gate=page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
-            await tap(page.locator('#v15ProfileChip')); await gate;
+            await tap(switcher); await gate;
           }
           await page.goto(URL,{waitUntil:'domcontentloaded',timeout:20000});
           await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
@@ -59,7 +60,7 @@ jobs:
 
           await tap(page.locator('[data-sex="male"]')); await tap(page.locator('[data-run="3"]')); await createPlan();
           let chip=await page.locator('#v15ProfileChip').innerText(); if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('male chip wrong');
-          if(await page.locator('#v15ChangeProfile').count())throw new Error('obsolete profile switch still present');
+          if(await page.locator('#v15ChangeProfile').count()!==1)throw new Error('direct profile switch missing');
           const size=await page.evaluate(()=>({w:innerWidth,h:innerHeight})); if(size.w!==390||size.h!==844)throw new Error('viewport expanded');
           await tap(page.locator('.bottom .nav[data-nav="program"]'));
           const male=[]; for(let i=0;i<3;i++){await tap(page.locator('#sessionTabs button').nth(i));male.push(await page.locator('#sessionTitle').innerText())}
@@ -97,7 +98,7 @@ jobs:
           out('Femme restored');
 
           const resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name));
-          if(!resources.some(u=>u.includes('her12-v15.js?v=20')))throw new Error('V15 v20 not loaded');
+          if(!resources.some(u=>u.includes('her12-v15.js?v=21')))throw new Error('V15 v21 not loaded');
           const slots=await page.evaluate(()=>JSON.parse(localStorage.getItem('HER12_PROFILE_SLOTS_V16')||'{}'));
           if(!slots.male||!slots.female)throw new Error('profile slots missing');
           if(errors.length)throw new Error(errors.join(' | '));
