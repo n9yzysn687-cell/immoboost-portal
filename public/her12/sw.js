@@ -1,0 +1,15 @@
+const CACHE="her12-v11";
+const SHELL=[
+  "./","./index.html","./styles-v2.css","./enhancements-v3.css","./experience-v4.css","./experience-v5.css","./experience-v6.css","./experience-v7.css","./program-v2.js","./runtime-v2.js","./enhancements-v3.js","./experience-v4b.js","./experience-v5.js","./experience-v6.js","./experience-v7.js","./manifest.webmanifest","./icon.svg","./apple-touch-icon.png"
+];
+const MEDIA=[
+  "./assets/hero.jpg","./assets/hip_thrust.jpg","./assets/rdl.jpg","./assets/bulgarian.jpg","./assets/hip_abduction.jpg",
+  "./assets/lat_pulldown.jpg","./assets/seated_row.jpg","./assets/chest_press.jpg","./assets/triceps_pushdown.jpg","./assets/lateral_raise.jpg",
+  "./assets/overhead_triceps.jpg","./assets/pallof_press.jpg","./assets/leg_press.jpg","./assets/step_up.jpg","./assets/cable_kickback.jpg","./assets/reverse_crunch.jpg","./assets/ab_crunch.jpg"
+];
+const FIRST_PAINT=["./assets/hero.jpg","./assets/hip_thrust.jpg","./assets/triceps_pushdown.jpg","./assets/leg_press.jpg"];
+const CORE=[...SHELL,...FIRST_PAINT];
+self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)));self.skipWaiting()});
+self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))));self.clients.claim()});
+self.addEventListener("message",event=>{if(event.data?.type!=="WARM_MEDIA")return;event.waitUntil(caches.open(CACHE).then(async cache=>{const existing=await Promise.all(MEDIA.map(file=>cache.match(file))),missing=MEDIA.filter((_,i)=>!existing[i]);await Promise.allSettled(missing.map(file=>cache.add(file)))}))});
+self.addEventListener("fetch",event=>{if(event.request.method!=="GET")return;const url=new URL(event.request.url),isLocal=url.origin===self.location.origin,isMedia=isLocal&&url.pathname.includes("/her12/assets/");if(event.request.mode==="navigate"&&isLocal){event.respondWith(fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put("./index.html",copy)).catch(()=>{})}return response}).catch(()=>caches.match("./index.html")));return}if(isMedia){event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{})}return response})));return}if(isLocal){event.respondWith(fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{})}return response}).catch(()=>caches.match(event.request).then(cached=>cached||caches.match("./index.html"))));return}event.respondWith(fetch(event.request))});

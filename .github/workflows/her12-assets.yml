@@ -1,0 +1,60 @@
+name: HER12 Local Media
+
+on:
+  push:
+    paths:
+      - '.github/workflows/her12-assets.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  download-media:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Download HER12 exercise media
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/her12/assets
+          download() {
+            local name="$1"
+            local url="$2"
+            echo "Downloading $name"
+            curl --fail --location --retry 3 --silent --show-error "$url" -o "public/her12/assets/$name"
+            test -s "public/her12/assets/$name"
+            test "$(wc -c < "public/her12/assets/$name")" -gt 8000
+          }
+          download hero.jpg 'https://images.pexels.com/photos/29825217/pexels-photo-29825217.jpeg?auto=compress&dpr=1&w=1260'
+          download hip_thrust.jpg 'https://images.pexels.com/photos/13122465/pexels-photo-13122465.jpeg?auto=compress&dpr=1&w=1260'
+          download rdl.jpg 'https://images.pexels.com/photos/29825217/pexels-photo-29825217.jpeg?auto=compress&dpr=1&w=1260'
+          download bulgarian.jpg 'https://images.pexels.com/photos/6339676/pexels-photo-6339676.jpeg?auto=compress&dpr=1&w=1260'
+          download hip_abduction.jpg 'https://images.pexels.com/photos/6539861/pexels-photo-6539861.jpeg?auto=compress&dpr=1&w=1260'
+          download lat_pulldown.jpg 'https://images.pexels.com/photos/5132096/pexels-photo-5132096.jpeg?auto=compress&dpr=1&w=1260'
+          download seated_row.jpg 'https://images.pexels.com/photos/13106582/pexels-photo-13106582.jpeg?auto=compress&dpr=1&w=1260'
+          download chest_press.jpg 'https://images.pexels.com/photos/6539839/pexels-photo-6539839.jpeg?auto=compress&dpr=1&w=1260'
+          download triceps_pushdown.jpg 'https://images.pexels.com/photos/13616289/pexels-photo-13616289.jpeg?auto=compress&dpr=1&w=1260'
+          download lateral_raise.jpg 'https://images.pexels.com/photos/29825226/pexels-photo-29825226.jpeg?auto=compress&dpr=1&w=1260'
+          download overhead_triceps.jpg 'https://images.pexels.com/photos/14623619/pexels-photo-14623619.jpeg?auto=compress&dpr=1&w=1260'
+          download pallof_press.jpg 'https://images.pexels.com/photos/29825220/pexels-photo-29825220.jpeg?auto=compress&dpr=1&w=1260'
+          download leg_press.jpg 'https://images.pexels.com/photos/28076/pexels-photo.jpg?auto=compress&dpr=1&w=1260'
+          download step_up.jpg 'https://images.pexels.com/photos/13896897/pexels-photo-13896897.jpeg?auto=compress&dpr=1&w=1260'
+          download cable_kickback.jpg 'https://images.pexels.com/photos/29825220/pexels-photo-29825220.jpeg?auto=compress&dpr=1&w=1260'
+          download reverse_crunch.jpg 'https://images.pexels.com/photos/7721988/pexels-photo-7721988.jpeg?auto=compress&dpr=1&w=1260'
+          download ab_crunch.jpg 'https://images.pexels.com/photos/5669181/pexels-photo-5669181.jpeg?auto=compress&dpr=1&w=1260'
+      - name: Commit downloaded assets
+        shell: bash
+        run: |
+          git config user.name 'her12-media-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add public/her12/assets
+          if git diff --cached --quiet; then
+            echo 'No media changes.'
+            exit 0
+          fi
+          git commit -m 'HER12: vendor local exercise media'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
