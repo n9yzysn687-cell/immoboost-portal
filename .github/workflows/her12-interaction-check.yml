@@ -1,4 +1,4 @@
-name: HER12 Real Touch Mobile Acceptance
+name: HER12 Final Mobile Acceptance
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   validate:
-    timeout-minutes: 5
+    timeout-minutes: 6
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -14,110 +14,146 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Validate real mobile touch flows
+      - name: Validate final HER12 mobile release
         run: |
-          cat > her12-touch-acceptance.mjs <<'EOF'
+          cat > her12-final.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=real-touch-v4';
+          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v19';
           const browser=await chromium.launch({headless:true});
-          const mobile={viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true};
+          const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const page=await context.newPage();
+          page.setDefaultTimeout(12000);
+          const errors=[];
+          page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
+          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+          page.on('requestfailed',r=>{if(r.url().includes('her12-1plk7r.v2.appdeploy.ai'))errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||''))});
           const out=s=>console.log('[HER12] '+s);
-          const capture=(page,errors)=>{
-            page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
-            page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-            page.on('requestfailed',r=>{if(r.url().includes('her12-1plk7r.v2.appdeploy.ai'))errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||''))});
-          };
-          async function tap(page,locator){
-            await locator.waitFor({state:'visible',timeout:12000});
+          async function tap(locator){
+            await locator.waitFor({state:'visible'});
             await locator.scrollIntoViewIfNeeded();
             const box=await locator.boundingBox();
             if(!box)throw new Error('No touch box for '+await locator.evaluate(el=>el.outerHTML.slice(0,160)));
             await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);
-            await page.waitForTimeout(100);
+            await page.waitForTimeout(120);
           }
-          async function daysAndCreate(page){
+          async function createPlan(){
             const root=page.locator('.her4Onboarding');
             await root.waitFor({state:'visible',timeout:15000});
             for(const day of ['0','2','4']){
               const b=root.locator(`.her4Days [data-day="${day}"]`);
-              if(!await b.evaluate(el=>el.classList.contains('active')))await tap(page,b);
+              if(!await b.evaluate(el=>el.classList.contains('active')))await tap(b);
             }
-            await tap(page,root.locator('[data-step="1"] [data-next="2"]'));
-            await root.locator('.her4Step[data-step="3"]').waitFor({state:'visible',timeout:7000});
-            await tap(page,root.locator('#her4Create'));
-            await root.waitFor({state:'detached',timeout:12000});
-            await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:12000});
+            await tap(root.locator('[data-step="1"] [data-next="2"]'));
+            await root.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});
+            await tap(root.locator('#her4Create'));
+            await root.waitFor({state:'detached'});
+            await page.locator('#v15ProfileChip').waitFor({state:'visible'});
           }
-          async function freshMaleAndReturning(){
-            const context=await browser.newContext(mobile);const page=await context.newPage();page.setDefaultTimeout(9000);const errors=[];capture(page,errors);
-            const response=await page.goto(URL+'&case=fresh-male',{waitUntil:'domcontentloaded',timeout:20000});
-            if(!response||response.status()>=400)throw new Error('HTTP '+response?.status());
-            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
-            if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('Femme/Homme choice missing');
-            out('fresh gate shows Femme + Homme');
-            await tap(page,page.locator('[data-sex="male"]'));
-            await page.locator('[data-run="3"]').waitFor({state:'visible'});
-            await tap(page,page.locator('[data-run="3"]'));
-            await daysAndCreate(page);
-            const chip=await page.locator('#v15ProfileChip').innerText();if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('male chip wrong: '+chip);
-            const size=await page.evaluate(()=>({w:innerWidth,h:innerHeight}));if(size.w!==390||size.h!==844)throw new Error('viewport expanded '+JSON.stringify(size));
-            out('male profile created; viewport 390x844');
-            await tap(page,page.locator('.bottom .nav[data-nav="program"]'));
-            const titles=[];for(let i=0;i<3;i++){await tap(page,page.locator('#sessionTabs button').nth(i));titles.push(await page.locator('#sessionTitle').innerText())}
-            if(!titles[0].includes('Upper A')||!titles[1].includes('Running Strength')||!titles[2].includes('Upper B'))throw new Error('male split wrong: '+titles.join(' | '));
-            out('male split OK');
-            await tap(page,page.locator('#sessionTabs button').first());
-            await tap(page,page.locator('#exerciseList .exerciseRow').first());
-            if(await page.locator('#v6Warmup').isVisible().catch(()=>false))await tap(page,page.locator('#v6Warmup [data-warm="skip"]'));
-            await tap(page,page.locator('#setRows .setCheck').first());
-            if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer did not start');
-            await tap(page,page.locator('#timerSkip'));out('exercise touch + timer OK');
-            await tap(page,page.locator('#backExercise'));await page.locator('#program').waitFor({state:'visible'});
-            for(const nav of ['tracking','more','home','program']){
-              await tap(page,page.locator(`.bottom .nav[data-nav="${nav}"]`));
-              if(await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('touch nav failed '+nav);
-              out('touch nav '+nav+' OK');
-            }
-            await tap(page,page.locator('.bottom .nav[data-nav="tracking"]'));
-            const trackingText=await page.locator('#v11Progress').innerText();
-            if(!trackingText.includes('Pectoraux')||!trackingText.includes('Dos vertical')||!trackingText.includes('Dos horizontal')||!trackingText.includes('Épaules')||!trackingText.includes('Jambes'))throw new Error('male Suivi priorities incomplete: '+trackingText.slice(0,700));
-            if(trackingText.includes('Fessiers')||trackingText.includes('Hip Thrust'))throw new Error('female progress goals leaked into male Suivi');
-            out('male Suivi priorities OK');
-            const measures=page.locator('#v11Progress .v11BodyCard button:visible');
-            await tap(page,measures);
-            if(await page.locator('#body').evaluate(el=>el.classList.contains('hidden')))throw new Error('Suivi to Mesures failed');
-            out('Suivi to Mesures OK');
-            await page.reload({waitUntil:'domcontentloaded',timeout:20000});await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
-            if(await page.locator('.v15ProfileGate').isVisible().catch(()=>false))throw new Error('returning user forced through gate');
-            await tap(page,page.locator('#v14HomeSettings'));await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
-            page.once('dialog',d=>d.accept());await tap(page,page.locator('#v15ChangeProfile'));
-            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
-            if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('profile chooser missing after change profile');
-            out('returning user can change Homme/Femme');
-            const resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name));
-            if(!resources.some(u=>u.includes('her12-v15.js?v=18')))throw new Error('V15 v18 asset not loaded');
-            out('current V15 v18 asset loaded');
-            if(errors.length)throw new Error(errors.join(' | '));
-            await context.close();
+          async function openBody(){
+            await tap(page.locator('.bottom .nav[data-nav="tracking"]'));
+            await tap(page.locator('#v11Progress .v11BodyCard button:visible'));
+            await page.locator('#body').waitFor({state:'visible'});
           }
-          async function freshFemale(){
-            const context=await browser.newContext(mobile);const page=await context.newPage();page.setDefaultTimeout(9000);const errors=[];capture(page,errors);
-            await page.goto(URL+'&case=fresh-female',{waitUntil:'domcontentloaded',timeout:20000});
-            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
-            await tap(page,page.locator('[data-sex="female"]'));await daysAndCreate(page);
-            const chip=await page.locator('#v15ProfileChip').innerText();if(!chip.includes('Femme'))throw new Error('female chip wrong: '+chip);
-            await tap(page,page.locator('.bottom .nav[data-nav="program"]'));
-            const titles=[];for(let i=0;i<3;i++){await tap(page,page.locator('#sessionTabs button').nth(i));titles.push(await page.locator('#sessionTitle').innerText())}
-            if(titles.some(t=>/Upper A|Running Strength|Upper B/.test(t)))throw new Error('male plan leaked into female profile: '+titles.join(' | '));
-            out('female program preserved');
-            await tap(page,page.locator('.bottom .nav[data-nav="tracking"]'));
-            const trackingText=await page.locator('#v11Progress').innerText();
-            if(!trackingText.includes('Fessiers')||!trackingText.includes('Hip Thrust'))throw new Error('female Suivi goals were altered');
-            if(trackingText.includes('Pectoraux')||trackingText.includes('Dos horizontal'))throw new Error('male progress goals leaked into female Suivi');
-            out('female Suivi preserved');
-            if(errors.length)throw new Error(errors.join(' | '));
-            await context.close();
+          async function saveWeight(value){
+            await page.locator('#mWeight').fill(value);
+            await tap(page.locator('#saveMeasures'));
+            await page.waitForTimeout(150);
+            if(await page.locator('#mWeight').inputValue()!==value)throw new Error('weight save failed '+value);
           }
-          await freshMaleAndReturning();await freshFemale();await browser.close();out('HER12_REAL_TOUCH_ACCEPTANCE_OK');
+          async function switchToChooser(){
+            await tap(page.locator('.bottom .nav[data-nav="home"]'));
+            await tap(page.locator('#v14HomeSettings'));
+            await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
+            page.once('dialog',d=>d.accept());
+            await tap(page.locator('#v15ChangeProfile'));
+            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
+          }
+
+          const response=await page.goto(URL,{waitUntil:'domcontentloaded',timeout:20000});
+          if(!response||response.status()>=400)throw new Error('HTTP '+response?.status());
+          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
+          if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('Femme/Homme choice missing');
+          out('fresh Femme/Homme gate OK');
+
+          await tap(page.locator('[data-sex="male"]'));
+          await tap(page.locator('[data-run="3"]'));
+          await createPlan();
+          let chip=await page.locator('#v15ProfileChip').innerText();
+          if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('male chip wrong: '+chip);
+          const size=await page.evaluate(()=>({w:innerWidth,h:innerHeight}));
+          if(size.w!==390||size.h!==844)throw new Error('viewport expanded '+JSON.stringify(size));
+          out('male profile + viewport OK');
+
+          await tap(page.locator('.bottom .nav[data-nav="program"]'));
+          const maleTitles=[];
+          for(let i=0;i<3;i++){await tap(page.locator('#sessionTabs button').nth(i));maleTitles.push(await page.locator('#sessionTitle').innerText())}
+          if(!maleTitles[0].includes('Upper A')||!maleTitles[1].includes('Running Strength')||!maleTitles[2].includes('Upper B'))throw new Error('male split wrong: '+maleTitles.join(' | '));
+          await tap(page.locator('#sessionTabs button').first());
+          await tap(page.locator('#exerciseList .exerciseRow').first());
+          if(await page.locator('#v6Warmup').isVisible().catch(()=>false))await tap(page.locator('#v6Warmup [data-warm="skip"]'));
+          await tap(page.locator('#setRows .setCheck').first());
+          if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer did not start');
+          await tap(page.locator('#timerSkip'));
+          await tap(page.locator('#backExercise'));
+          out('male workout touch + timer OK');
+
+          for(const nav of ['tracking','more','home','program']){
+            await tap(page.locator(`.bottom .nav[data-nav="${nav}"]`));
+            if(await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('touch nav failed '+nav);
+          }
+          await tap(page.locator('.bottom .nav[data-nav="tracking"]'));
+          let trackingText=await page.locator('#v11Progress').innerText();
+          for(const label of ['Pectoraux','Dos vertical','Dos horizontal','Épaules','Jambes'])if(!trackingText.includes(label))throw new Error('male Suivi missing '+label);
+          if(trackingText.includes('Fessiers')||trackingText.includes('Hip Thrust'))throw new Error('female goals leaked into male Suivi');
+          out('male navigation + Suivi OK');
+
+          await openBody();
+          await saveWeight('101.1');
+          await switchToChooser();
+          if(!(await page.locator('[data-sex="male"] small').innerText()).includes('Reprendre'))throw new Error('saved Homme profile not advertised');
+          out('male progress safely stored');
+
+          await tap(page.locator('[data-sex="female"]'));
+          await createPlan();
+          chip=await page.locator('#v15ProfileChip').innerText();
+          if(!chip.includes('Femme'))throw new Error('female chip wrong: '+chip);
+          await tap(page.locator('.bottom .nav[data-nav="program"]'));
+          const femaleTitles=[];
+          for(let i=0;i<3;i++){await tap(page.locator('#sessionTabs button').nth(i));femaleTitles.push(await page.locator('#sessionTitle').innerText())}
+          if(femaleTitles.some(t=>/Upper A|Running Strength|Upper B/.test(t)))throw new Error('male plan leaked into female profile');
+          await tap(page.locator('.bottom .nav[data-nav="tracking"]'));
+          trackingText=await page.locator('#v11Progress').innerText();
+          if(!trackingText.includes('Fessiers')||!trackingText.includes('Hip Thrust'))throw new Error('female Suivi goals altered');
+          if(trackingText.includes('Dos horizontal')||trackingText.includes('Pectoraux'))throw new Error('male goals leaked into female Suivi');
+          await openBody();
+          await saveWeight('62.2');
+          out('female program + progress OK');
+
+          await switchToChooser();
+          if(!(await page.locator('[data-sex="female"] small').innerText()).includes('Reprendre'))throw new Error('saved Femme profile not advertised');
+          if(!(await page.locator('[data-sex="male"] small').innerText()).includes('Reprendre'))throw new Error('saved Homme profile missing');
+          await tap(page.locator('[data-sex="male"]'));
+          await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
+          chip=await page.locator('#v15ProfileChip').innerText();
+          if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('Homme restore failed');
+          await openBody();
+          if(await page.locator('#mWeight').inputValue()!=='101.1')throw new Error('Homme measurement lost or mixed');
+          out('Homme restored with original progress');
+
+          await switchToChooser();
+          await tap(page.locator('[data-sex="female"]'));
+          await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
+          if(!(await page.locator('#v15ProfileChip').innerText()).includes('Femme'))throw new Error('Femme restore failed');
+          await openBody();
+          if(await page.locator('#mWeight').inputValue()!=='62.2')throw new Error('Femme measurement lost or mixed');
+          out('Femme restored with original progress');
+
+          const resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name));
+          if(!resources.some(u=>u.includes('her12-v15.js?v=19')))throw new Error('V15 v19 asset not loaded');
+          const slots=await page.evaluate(()=>JSON.parse(localStorage.getItem('HER12_PROFILE_SLOTS_V16')||'{}'));
+          if(!slots.male||!slots.female)throw new Error('both profile slots not persisted');
+          if(errors.length)throw new Error(errors.join(' | '));
+          await browser.close();
+          out('HER12_FINAL_ACCEPTANCE_OK');
           EOF
-          node her12-touch-acceptance.mjs
+          node her12-final.mjs
