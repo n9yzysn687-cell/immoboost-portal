@@ -1,12 +1,12 @@
-name: HER12 V15 Post-Fix Diagnostic
+name: HER12 V15 Final Mobile Validation
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  diagnose:
-    timeout-minutes: 3
+  validate:
+    timeout-minutes: 4
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -14,30 +14,80 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Capture runtime state
+      - name: Validate full male mobile flow
         run: |
-          cat > her12-postfix.mjs <<'EOF'
+          cat > her12-final.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const browser=await chromium.launch({headless:true});
-          const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
-          const errors=[];
-          page.on('pageerror',e=>errors.push(e.stack||e.message));
-          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?postfix-diag=1',{waitUntil:'domcontentloaded',timeout:15000});
-          await new Promise(r=>setTimeout(r,4000));
-          const state=await page.evaluate(()=>({
-            layers:[...document.querySelectorAll('script[data-her12-layer]')].map(s=>s.dataset.her12Layer),
-            gate:document.querySelectorAll('.v15ProfileGate').length,
-            femaleButton:document.querySelectorAll('[data-sex="female"]').length,
-            maleButton:document.querySelectorAll('[data-sex="male"]').length,
-            onboarding:document.querySelectorAll('.her4Onboarding').length,
-            v14Settings:document.querySelectorAll('#v14SettingsCard').length,
-            v15Ready:document.documentElement.classList.contains('her15-ready'),
-            htmlClass:document.documentElement.className,
-            meta:localStorage.getItem('HER12_META_V15')
-          }));
-          console.log('STATE='+JSON.stringify(state));
-          console.log('ERRORS='+JSON.stringify(errors));
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+          page.setDefaultTimeout(8000);
+          const errors = [];
+          page.on('pageerror', e => errors.push('PAGEERROR ' + (e.stack || e.message)));
+          page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
+          const log = text => console.log('[HER12 FINAL] ' + text);
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?final-mobile=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          await page.locator('.v15ProfileGate').waitFor({ state: 'visible', timeout: 15000 });
+          log('profile gate visible');
+          await page.locator('[data-sex="male"]').click();
+          await page.locator('[data-run="3"]').click();
+          await page.locator('.her4Onboarding').waitFor({ state: 'visible' });
+          log('male profile + running frequency selected');
+          const activeDays = page.locator('.her4Days [data-day].active');
+          if (await activeDays.count() !== 3) {
+            const days = page.locator('.her4Days [data-day]');
+            for (let i = 0; i < 3; i++) await days.nth(i * 2).click();
+          }
+          await page.locator('.her4Onboarding [data-next="2"]').click();
+          await page.locator('.her4Step[data-step="3"]').waitFor({ state: 'visible' });
+          await page.locator('#her4Create').click();
+          await page.locator('.her4Onboarding').waitFor({ state: 'detached', timeout: 12000 });
+          await page.locator('#v15ProfileChip').waitFor({ state: 'visible' });
+          const chip = await page.locator('#v15ProfileChip').innerText();
+          if (!chip.includes('Homme')) throw new Error('male profile chip missing: ' + chip);
+          log(chip);
+          await page.getByRole('button', { name: /Séances/i }).last().click();
+          const titles = [];
+          for (let i = 0; i < 3; i++) {
+            await page.locator('#sessionTabs button').nth(i).click();
+            titles.push(await page.locator('#sessionTitle').innerText());
+          }
+          if (!titles[0].includes('Upper A')) throw new Error('Upper A missing');
+          if (!titles[1].includes('Running Strength')) throw new Error('Running Strength missing');
+          if (!titles[2].includes('Upper B')) throw new Error('Upper B missing');
+          log('split=' + titles.join(' | '));
+          for (const [label, id] of [['Suivi','tracking'], ['Mesures','body'], ['Guide','more'], ['Accueil','home']]) {
+            await page.getByRole('button', { name: new RegExp(label, 'i') }).last().click();
+            const active = await page.locator('.screen:not(.hidden)').getAttribute('id');
+            if (active !== id) throw new Error(`${label} opened ${active}`);
+          }
+          log('bottom navigation OK');
+          await page.getByRole('button', { name: /Séances/i }).last().click();
+          await page.locator('#sessionTabs button').first().click();
+          await page.locator('#exerciseList .exerciseRow').first().click();
+          await page.locator('#v12Coach').waitFor({ state: 'visible' });
+          if (!/Cible HER12/i.test(await page.locator('#v12Coach').innerText())) throw new Error('adaptive coach missing');
+          await page.locator('#setRows .setCheck').first().click();
+          await page.waitForTimeout(200);
+          if (await page.locator('#restTimer').evaluate(el => el.classList.contains('hidden'))) throw new Error('rest timer hidden after set completion');
+          log('coach + timer OK');
+          await page.locator('#timerSkip').click();
+          await page.getByRole('button', { name: /Séances/i }).last().click();
+          await page.getByRole('button', { name: /Changer mes jours/i }).first().click();
+          await page.locator('.her4Onboarding').waitFor({ state: 'visible' });
+          if (await page.locator('.her4Days [data-day].active').count() !== 3) throw new Error('training days not retained');
+          log('change days OK');
+          const close = page.getByRole('button', { name: 'Fermer' });
+          if (await close.isVisible().catch(() => false)) await close.click();
+          await page.getByRole('button', { name: /Guide/i }).last().click();
+          const reset = page.getByRole('button', { name: /Recommencer HER12 à zéro/i });
+          if (!await reset.isVisible()) throw new Error('full reset missing');
+          page.once('dialog', d => d.accept());
+          await reset.click({ noWaitAfter: true });
+          await page.locator('.v15ProfileGate').waitFor({ state: 'visible', timeout: 15000 });
+          const stored = await page.evaluate(() => ({ meta: localStorage.getItem('HER12_META_V15'), profile: localStorage.getItem('HER12_PROFILE_V4'), state: localStorage.getItem('HER12_PRIVATE_V2') }));
+          if (stored.meta || stored.profile || stored.state) throw new Error('reset left HER12 data: ' + JSON.stringify(stored));
+          if (errors.length) throw new Error(errors.join(' | '));
+          log('HER12_V15_FINAL_OK');
           await browser.close();
           EOF
-          node her12-postfix.mjs
+          node her12-final.mjs
