@@ -41,16 +41,4 @@ Open HER12 in Safari, tap **Share**, then **Add to Home Screen**. The PWA uses a
 
 The repository runs `node scripts/her12-qa.mjs` on every pull request before type-check and production build. It verifies the A/B/C program structure, unique exercise IDs, phase-set definitions, repetition and rest ranges, five-step coaching, every referenced local media file, service-worker precaching and required app-shell references.
 
-The final release gate is:
-
-- HER12 product QA: green.
-- TypeScript type-check: green.
-- Next.js production build: green.
-- Vercel deployment: Ready.
-- A normal exercise cannot be validated while prescribed sets remain unchecked.
-- The explicit pain flow can exit an exercise without forcing the remaining sets.
-- A session is complete only when every active exercise has a saved record.
-- Session progression is A → B → C → next week.
-- Rest timing is based on an absolute end timestamp so backgrounding the browser does not simply pause the clock.
-- Measurement entries reject an entirely empty submission and same-day measurements replace the previous same-day entry.
-- Import data is normalized and user-entered text is rendered as text rather than injected HTML.
+The release candidate is considered ready only when all automated checks are green and Vercel reports the deployment as Ready.
