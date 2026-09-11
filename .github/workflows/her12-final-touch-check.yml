@@ -1,4 +1,4 @@
-name: HER12 AppDeploy Boot Diagnostic
+name: HER12 Overlay Event Trace
 
 on:
   push:
@@ -7,44 +7,45 @@ on:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
       - name: Install Playwright
         run: |
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect AppDeploy boot
+      - name: Trace blocked second tracking tap
         run: |
-          cat > boot.mjs <<'EOF'
+          cat > trace.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          const page=await context.newPage();
-          const errors=[];
-          page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
-          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-          page.on('requestfailed',r=>errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||'')));
-          const response=await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?diag=overlay-purge',{waitUntil:'domcontentloaded',timeout:20000});
-          console.log('HTTP='+response?.status()+' URL='+page.url());
-          for(const delay of [500,2000,5000]){
-            await page.waitForTimeout(delay);
-            const data=await page.evaluate(()=>({
-              href:location.href,
-              title:document.title,
-              body:document.body?.innerText.slice(0,700),
-              gate:document.querySelectorAll('.v15ProfileGate').length,
-              gateVisible:!!document.querySelector('.v15ProfileGate')&&getComputedStyle(document.querySelector('.v15ProfileGate')).display!=='none',
-              overlayCount:[...document.querySelectorAll('*')].filter(el=>el.tagName.startsWith('APPDEPLOY-OVERLAY-')).length,
-              ready:document.documentElement.className,
-              scripts:[...document.scripts].map(s=>s.src).filter(Boolean),
-              resources:performance.getEntriesByType('resource').map(e=>e.name).filter(u=>/her12-v1[45]|experience-v12|main/.test(u)),
-              meta:localStorage.getItem('HER12_META_V15'),
-              profile:localStorage.getItem('HER12_PROFILE_V4')
-            }));
-            console.log('AFTER='+delay+' '+JSON.stringify(data));
-          }
-          console.log('ERRORS='+JSON.stringify(errors));
+          const page=await context.newPage();page.setDefaultTimeout(12000);
+          const tap=async locator=>{await locator.waitFor({state:'visible'});await locator.scrollIntoViewIfNeeded();const b=await locator.boundingBox();if(!b)throw new Error('no box');await page.touchscreen.tap(b.x+b.width/2,b.y+b.height/2);await page.waitForTimeout(120)};
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?diag=event-trace',{waitUntil:'domcontentloaded',timeout:20000});
+          await page.locator('.v15ProfileGate').waitFor({state:'visible'});await tap(page.locator('[data-sex="male"]'));await page.locator('[data-run="3"]').waitFor({state:'visible'});await tap(page.locator('[data-run="3"]'));
+          const root=page.locator('.her4Onboarding');await root.waitFor({state:'visible'});for(const day of ['0','2','4']){const b=root.locator(`.her4Days [data-day="${day}"]`);if(!await b.evaluate(el=>el.classList.contains('active')))await tap(b)}
+          await tap(root.locator('[data-step="1"] [data-next="2"]'));await root.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});await tap(root.locator('#her4Create'));await root.waitFor({state:'detached'});
+          await tap(page.locator('.bottom .nav[data-nav="program"]'));
+          await page.evaluate(()=>{
+            window.__herTrace=[];
+            const describe=t=>t instanceof Element ? t.tagName+'#'+(t.id||'')+'.'+String(t.className||'').replace(/\s+/g,'.') : String(t);
+            for(const type of ['pointerdown','pointerup','touchstart','touchend','click']){
+              window.addEventListener(type,e=>{
+                const p=e.composedPath();
+                window.__herTrace.push({type,target:describe(e.target),path:p.slice(0,4).map(describe),defaultPrevented:e.defaultPrevented});
+              },true);
+            }
+          });
+          for(const nav of ['tracking','more','home','program'])await tap(page.locator(`.bottom .nav[data-nav="${nav}"]`));
+          await page.evaluate(()=>{window.__herTrace=[]});
+          const tracking=page.locator('.bottom .nav[data-nav="tracking"]');const box=await tracking.boundingBox();console.log('TRACKING_BOX='+JSON.stringify(box));
+          console.log('TOP_BEFORE='+await page.evaluate(({x,y})=>{const e=document.elementFromPoint(x,y);return e?.tagName+'#'+(e?.id||'')+'.'+String(e?.className||'').replace(/\s+/g,'.')},{x:box.x+box.width/2,y:box.y+box.height/2}));
+          await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);await page.waitForTimeout(600);
+          console.log('TRACE='+JSON.stringify(await page.evaluate(()=>window.__herTrace)));
+          console.log('TRACKING_HIDDEN='+await page.locator('#tracking').evaluate(el=>el.classList.contains('hidden')));
+          console.log('MEASURES_VISIBLE='+await page.locator('#v5Measures').isVisible());
+          console.log('OVERLAYS='+JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('*')].filter(el=>el.tagName.startsWith('APPDEPLOY-OVERLAY-')).map(el=>({tag:el.tagName,style:el.getAttribute('style'),aria:el.getAttribute('aria-hidden'),inert:el.inert})))));
           await browser.close();
           EOF
-          node boot.mjs
+          node trace.mjs
