@@ -1,12 +1,12 @@
-name: HER12 V15 Male Female Mobile Validation
+name: HER12 Mobile Nav Geometry Diagnostic
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  validate:
-    timeout-minutes: 5
+  diagnose:
+    timeout-minutes: 4
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -14,155 +14,44 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Validate male and female mobile flows
+      - name: Inspect nav geometry after onboarding
         run: |
-          cat > her12-v15-final.mjs <<'EOF'
+          cat > nav-geometry.mjs <<'EOF'
           import { chromium } from 'playwright';
-
-          const URL = 'https://her12-1plk7r.v2.appdeploy.ai/?v15-acceptance=1';
           const browser = await chromium.launch({ headless: true });
-          const viewport = { width: 390, height: 844 };
-          const log = text => console.log('[HER12 ACCEPTANCE] ' + text);
-
-          function captureErrors(page, bucket) {
-            page.on('pageerror', e => bucket.push('PAGEERROR ' + (e.stack || e.message)));
-            page.on('console', m => { if (m.type() === 'error') bucket.push('CONSOLE ' + m.text()); });
-            page.on('requestfailed', r => {
-              const url = r.url();
-              if (url.includes('her12-1plk7r.v2.appdeploy.ai') && !url.includes('_warmup')) bucket.push('REQUEST ' + url + ' ' + (r.failure()?.errorText || ''));
-            });
-          }
-
-          async function selectDays(page) {
-            const root = page.locator('.her4Onboarding');
-            await root.waitFor({ state: 'visible' });
-            for (const day of ['0', '2', '4']) {
-              const button = root.locator(`.her4Days [data-day="${day}"]`);
-              if (!await button.evaluate(el => el.classList.contains('active'))) await button.click();
-            }
-            if (await root.locator('.her4Days [data-day].active').count() !== 3) throw new Error('exactly 3 training days were not selected');
-            await root.locator('[data-step="1"] [data-next="2"]').click();
-            await root.locator('.her4Step[data-step="3"]').waitFor({ state: 'visible' });
-          }
-
-          async function createPlan(page) {
-            const create = page.locator('#her4Create');
-            await create.waitFor({ state: 'visible' });
-            await create.click({ noWaitAfter: true });
-            await page.locator('.her4Onboarding').waitFor({ state: 'detached', timeout: 12000 });
-            await page.locator('#v15ProfileChip').waitFor({ state: 'visible', timeout: 12000 });
-          }
-
-          async function maleFlow() {
-            const context = await browser.newContext({ viewport, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-            const page = await context.newPage();
-            page.setDefaultTimeout(9000);
-            const errors = [];
-            captureErrors(page, errors);
-            await page.goto(URL + '&profile=male', { waitUntil: 'domcontentloaded', timeout: 15000 });
-            await page.locator('.v15ProfileGate').waitFor({ state: 'visible', timeout: 15000 });
-            await page.locator('[data-sex="male"]').click();
-            await page.locator('[data-run="3"]').click();
-            await selectDays(page);
-            await createPlan(page);
-            const chip = await page.locator('#v15ProfileChip').innerText();
-            if (!chip.includes('Homme') || !chip.includes('3×')) throw new Error('male profile chip incorrect: ' + chip);
-            log('male profile persisted: ' + chip);
-
-            await page.locator('.bottom .nav[data-nav="program"]').click();
-            const titles = [];
-            for (let i = 0; i < 3; i++) {
-              await page.locator('#sessionTabs button').nth(i).click();
-              titles.push(await page.locator('#sessionTitle').innerText());
-            }
-            if (!titles[0].includes('Upper A')) throw new Error('Upper A missing: ' + titles[0]);
-            if (!titles[1].includes('Running Strength')) throw new Error('Running Strength missing: ' + titles[1]);
-            if (!titles[2].includes('Upper B')) throw new Error('Upper B missing: ' + titles[2]);
-            log('male split: ' + titles.join(' | '));
-
-            await page.locator('#sessionTabs button').nth(1).click();
-            const rows = page.locator('#exerciseList .exerciseRow');
-            const legRows = [];
-            for (let i = 0; i < 4; i++) legRows.push(await rows.nth(i).innerText());
-            if (!/3\s*[×x]/.test(legRows[0])) throw new Error('3-run leg press volume incorrect: ' + legRows[0]);
-            for (let i = 1; i < 4; i++) if (!/2\s*[×x]/.test(legRows[i])) throw new Error('3-run leg volume incorrect: ' + legRows[i]);
-            log('running-aware leg volume OK');
-
-            for (const [nav, screen] of [['tracking','tracking'], ['more','more'], ['home','home'], ['program','program']]) {
-              await page.locator(`.bottom .nav[data-nav="${nav}"]`).click();
-              if (await page.locator(`#${screen}`).evaluate(el => el.classList.contains('hidden'))) throw new Error(nav + ' navigation failed');
-            }
-            await page.locator('.bottom .nav[data-nav="tracking"]').click();
-            if (await page.locator('#v5Measures').count()) {
-              await page.locator('#v5Measures').click();
-              if (await page.locator('#body').evaluate(el => el.classList.contains('hidden'))) throw new Error('measure navigation failed');
-            }
-            log('mobile navigation OK');
-
-            await page.locator('.bottom .nav[data-nav="program"]').click();
-            await page.locator('#sessionTabs button').first().click();
-            await page.locator('#exerciseList .exerciseRow').first().click();
-            if (await page.locator('#v6Warmup').isVisible().catch(() => false)) await page.locator('#v6Warmup [data-warm="skip"]').click();
-            await page.locator('#v12Coach').waitFor({ state: 'visible' });
-            if (!/Cible HER12/i.test(await page.locator('#v12Coach').innerText())) throw new Error('adaptive coach missing');
-            await page.locator('#setRows .setCheck').first().click();
-            await page.waitForTimeout(200);
-            if (await page.locator('#restTimer').evaluate(el => el.classList.contains('hidden'))) throw new Error('rest timer did not start');
-            await page.locator('#timerSkip').click();
-            log('adaptive coach + set timer OK');
-
-            await page.locator('.bottom .nav[data-nav="program"]').click();
-            await page.locator('#v12Schedule').click();
-            await page.locator('.her4Onboarding').waitFor({ state: 'visible' });
-            if (await page.locator('.her4Onboarding .her4Days [data-day].active').count() !== 3) throw new Error('saved training days not retained');
-            await page.locator('.v12CloseSetup').click();
-            log('change days re-entry OK');
-
-            await page.locator('.bottom .nav[data-nav="more"]').click();
-            const reset = page.locator('#v14ResetAll');
-            await reset.waitFor({ state: 'visible' });
-            page.once('dialog', d => d.accept());
-            await reset.click({ noWaitAfter: true });
-            await page.locator('.v15ProfileGate').waitFor({ state: 'visible', timeout: 15000 });
-            const stored = await page.evaluate(() => ({
-              meta: localStorage.getItem('HER12_META_V15'),
-              profile: localStorage.getItem('HER12_PROFILE_V4'),
-              state: localStorage.getItem('HER12_PRIVATE_V2'),
-            }));
-            if (stored.meta || stored.profile || stored.state) throw new Error('full reset left data: ' + JSON.stringify(stored));
-            if (errors.length) throw new Error(errors.join(' | '));
-            log('male flow + full reset OK');
-            await context.close();
-          }
-
-          async function femaleFlow() {
-            const context = await browser.newContext({ viewport, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-            const page = await context.newPage();
-            page.setDefaultTimeout(9000);
-            const errors = [];
-            captureErrors(page, errors);
-            await page.goto(URL + '&profile=female', { waitUntil: 'domcontentloaded', timeout: 15000 });
-            await page.locator('.v15ProfileGate').waitFor({ state: 'visible', timeout: 15000 });
-            await page.locator('[data-sex="female"]').click();
-            await selectDays(page);
-            await createPlan(page);
-            const chip = await page.locator('#v15ProfileChip').innerText();
-            if (!chip.includes('Femme')) throw new Error('female profile chip incorrect: ' + chip);
-            await page.locator('.bottom .nav[data-nav="program"]').click();
-            const titles = [];
-            for (let i = 0; i < 3; i++) {
-              await page.locator('#sessionTabs button').nth(i).click();
-              titles.push(await page.locator('#sessionTitle').innerText());
-            }
-            if (titles.some(title => /Upper A|Running Strength|Upper B/.test(title))) throw new Error('male program leaked into female profile: ' + titles.join(' | '));
-            if (errors.length) throw new Error(errors.join(' | '));
-            log('female program preserved: ' + titles.join(' | '));
-            await context.close();
-          }
-
-          await maleFlow();
-          await femaleFlow();
+          const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?nav-geometry=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          await page.locator('.v15ProfileGate').waitFor({ state: 'visible' });
+          await page.locator('[data-sex="male"]').click();
+          await page.locator('[data-run="3"]').click();
+          for (const day of ['0','2','4']) await page.locator(`.her4Days [data-day="${day}"]`).click();
+          await page.locator('.her4Onboarding [data-step="1"] [data-next="2"]').click();
+          await page.locator('.her4Step[data-step="3"]').waitFor({ state: 'visible' });
+          await page.locator('#her4Create').click({ noWaitAfter: true });
+          await page.locator('#v15ProfileChip').waitFor({ state: 'visible', timeout: 12000 });
+          const data = await page.evaluate(() => {
+            const nav = document.querySelector('.bottom');
+            const button = document.querySelector('.bottom .nav[data-nav="program"]');
+            const home = document.querySelector('#home');
+            const nr = nav.getBoundingClientRect();
+            const br = button.getBoundingClientRect();
+            const hr = home.getBoundingClientRect();
+            const x = br.left + br.width / 2;
+            const y = br.top + br.height / 2;
+            const stack = document.elementsFromPoint(x, y).map(el => ({ tag: el.tagName, id: el.id, cls: el.className, z: getComputedStyle(el).zIndex, pos: getComputedStyle(el).position, pe: getComputedStyle(el).pointerEvents }));
+            return {
+              viewport: { w: innerWidth, h: innerHeight, scrollY },
+              navRect: nr.toJSON(),
+              buttonRect: br.toJSON(),
+              homeRect: hr.toJSON(),
+              navStyle: { z: getComputedStyle(nav).zIndex, pos: getComputedStyle(nav).position, transform: getComputedStyle(nav).transform, pe: getComputedStyle(nav).pointerEvents },
+              buttonStyle: { z: getComputedStyle(button).zIndex, pos: getComputedStyle(button).position, pe: getComputedStyle(button).pointerEvents },
+              homeStyle: { z: getComputedStyle(home).zIndex, pos: getComputedStyle(home).position, pe: getComputedStyle(home).pointerEvents, transform: getComputedStyle(home).transform },
+              stack,
+              appStyle: { transform: getComputedStyle(document.querySelector('#app')).transform, pos: getComputedStyle(document.querySelector('#app')).position, z: getComputedStyle(document.querySelector('#app')).zIndex },
+            };
+          });
+          console.log('GEOMETRY=' + JSON.stringify(data));
           await browser.close();
-          log('HER12_V15_ACCEPTANCE_OK');
           EOF
-          node her12-v15-final.mjs
+          node nav-geometry.mjs
