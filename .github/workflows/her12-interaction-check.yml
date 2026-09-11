@@ -15,7 +15,7 @@ jobs:
           npx playwright install chromium >/dev/null 2>&1
       - name: Exercise HER12 like an iPhone user
         run: |
-          cat > /tmp/her12-check.mjs <<'EOF'
+          cat > her12-check.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({headless:true});
           const page = await browser.newPage({viewport:{width:390,height:844}, deviceScaleFactor:3, isMobile:true, hasTouch:true});
@@ -32,17 +32,19 @@ jobs:
           for(const name of navNames){
             const b=page.getByRole('button',{name:new RegExp(name,'i')}).last();
             const count=await b.count(); logs.push(`NAV ${name} count=${count}`);
-            if(count){ await b.click({timeout:5000}); await page.waitForTimeout(250); logs.push(`NAV ${name} clicked hidden=${await page.locator('.screen:not(.hidden)').getAttribute('id')}`); }
+            if(count){ await b.click({timeout:5000}); await page.waitForTimeout(250); logs.push(`NAV ${name} clicked active=${await page.locator('.screen:not(.hidden)').getAttribute('id')}`); }
           }
-          const start=page.getByRole('button',{name:/Commencer la prochaine séance/i});
+          const start=page.getByRole('button',{name:/Commencer|Reprendre|Commencer la prochaine séance/i}).first();
           logs.push('START_COUNT='+await start.count());
-          if(await start.count()){await start.click(); await page.waitForTimeout(300); logs.push('AFTER_START='+await page.locator('.screen:not(.hidden)').getAttribute('id'));}
+          if(await start.count()){await start.click({timeout:5000}); await page.waitForTimeout(300); logs.push('AFTER_START='+await page.locator('.screen:not(.hidden)').getAttribute('id'));}
           const ex=page.locator('#exerciseList button').first();
           logs.push('EX_COUNT='+await page.locator('#exerciseList button').count());
-          if(await ex.count()){await ex.click();await page.waitForTimeout(350);logs.push('AFTER_EX='+await page.locator('.screen:not(.hidden)').getAttribute('id'));}
+          if(await ex.count()){await ex.click({timeout:5000});await page.waitForTimeout(350);logs.push('AFTER_EX='+await page.locator('.screen:not(.hidden)').getAttribute('id'));}
           const check=page.locator('#setRows .setCheck').first();
           logs.push('SET_CHECK_COUNT='+await check.count());
-          if(await check.count()){await check.click();await page.waitForTimeout(250);logs.push('TIMER_VISIBLE='+!(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden'))));logs.push('TIMER_TEXT='+await page.locator('#timerText').innerText());}
+          if(await check.count()){await check.click({timeout:5000});await page.waitForTimeout(250);logs.push('TIMER_VISIBLE='+!(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden'))));logs.push('TIMER_TEXT='+await page.locator('#timerText').innerText());}
+          await page.getByRole('button',{name:/Guide|Conseils/i}).last().click({timeout:5000}).catch(()=>{});
+          await page.waitForTimeout(250);
           const changeDays=page.getByRole('button',{name:/Changer mes jours/i});
           logs.push('CHANGE_DAYS_COUNT='+await changeDays.count());
           console.log(logs.join('\n'));
@@ -50,4 +52,4 @@ jobs:
           if(buttons<5 || errors.length) process.exitCode=2;
           await browser.close();
           EOF
-          node /tmp/her12-check.mjs
+          node her12-check.mjs
