@@ -1,4 +1,4 @@
-name: HER12 Exact Mobile Nav Geometry
+name: HER12 Visual Viewport Diagnostic
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   diagnose:
-    timeout-minutes: 4
+    timeout-minutes: 3
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -14,46 +14,32 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Measure exact acceptance context
+      - name: Inspect visual viewport
         run: |
-          cat > nav-exact.mjs <<'EOF'
+          cat > visual-viewport.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({ headless: true });
           const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
           const page = await context.newPage();
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?nav-exact=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
-          await page.locator('.v15ProfileGate').waitFor({ state: 'visible' });
-          await page.locator('[data-sex="male"]').click();
-          await page.locator('[data-run="3"]').click();
-          for (const day of ['0','2','4']) {
-            const button = page.locator(`.her4Days [data-day="${day}"]`);
-            if (!await button.evaluate(el => el.classList.contains('active'))) await button.click();
-          }
-          await page.locator('.her4Onboarding [data-step="1"] [data-next="2"]').click();
-          await page.locator('.her4Step[data-step="3"]').waitFor({ state: 'visible' });
-          await page.locator('#her4Create').click({ noWaitAfter: true });
-          await page.locator('#v15ProfileChip').waitFor({ state: 'visible', timeout: 12000 });
-          const data = await page.evaluate(() => {
-            const nav = document.querySelector('.bottom');
-            const button = document.querySelector('.bottom .nav[data-nav="program"]');
-            const home = document.querySelector('#home');
-            const nr = nav.getBoundingClientRect();
-            const br = button.getBoundingClientRect();
-            const hr = home.getBoundingClientRect();
-            const x = br.left + br.width / 2;
-            const y = br.top + br.height / 2;
-            return {
-              viewport: { w: innerWidth, h: innerHeight, scrollY },
-              navRect: nr.toJSON(), buttonRect: br.toJSON(), homeRect: hr.toJSON(),
-              navStyle: { z: getComputedStyle(nav).zIndex, pos: getComputedStyle(nav).position, pe: getComputedStyle(nav).pointerEvents },
-              homeStyle: { z: getComputedStyle(home).zIndex, pos: getComputedStyle(home).position, transform: getComputedStyle(home).transform },
-              stackAtCenter: document.elementsFromPoint(x,y).map(el => ({tag:el.tagName,id:el.id,cls:String(el.className),z:getComputedStyle(el).zIndex,pos:getComputedStyle(el).position})),
-              point: {x,y},
-            };
-          });
-          console.log('EXACT=' + JSON.stringify(data));
-          try { await page.locator('.bottom .nav[data-nav="program"]').click({ timeout: 3000 }); console.log('CLICK=OK'); } catch (e) { console.log('CLICK=FAIL ' + e.message); }
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?visual-viewport=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          const values = await page.evaluate(() => ({
+            innerWidth,
+            innerHeight,
+            outerWidth,
+            outerHeight,
+            screenWidth: screen.width,
+            screenHeight: screen.height,
+            vv: visualViewport ? {
+              width: visualViewport.width,
+              height: visualViewport.height,
+              offsetTop: visualViewport.offsetTop,
+              offsetLeft: visualViewport.offsetLeft,
+              pageTop: visualViewport.pageTop,
+              scale: visualViewport.scale,
+            } : null,
+          }));
+          console.log('VIEWPORT=' + JSON.stringify(values));
           await context.close();
           await browser.close();
           EOF
-          node nav-exact.mjs
+          node visual-viewport.mjs
