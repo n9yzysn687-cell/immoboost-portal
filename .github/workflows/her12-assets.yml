@@ -45,6 +45,7 @@ jobs:
           download step_up.jpg 'https://images.pexels.com/photos/13896897/pexels-photo-13896897.jpeg?auto=compress&dpr=1&w=1260'
           download cable_kickback.jpg 'https://images.pexels.com/photos/29825220/pexels-photo-29825220.jpeg?auto=compress&dpr=1&w=1260'
           download reverse_crunch.jpg 'https://images.pexels.com/photos/7721988/pexels-photo-7721988.jpeg?auto=compress&dpr=1&w=1260'
+          download ab_crunch.jpg 'https://images.pexels.com/photos/5669181/pexels-photo-5669181.jpeg?auto=compress&dpr=1&w=1260'
       - name: Commit downloaded assets
         shell: bash
         run: |
