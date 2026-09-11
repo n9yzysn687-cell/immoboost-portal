@@ -18,7 +18,7 @@ jobs:
         run: |
           cat > her12-final.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v19';
+          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v20';
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
@@ -62,10 +62,9 @@ jobs:
           }
           async function switchToChooser(){
             await tap(page.locator('.bottom .nav[data-nav="home"]'));
-            await tap(page.locator('#v14HomeSettings'));
-            await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
+            await page.locator('#v15ProfileChip').waitFor({state:'visible'});
             page.once('dialog',d=>d.accept());
-            await tap(page.locator('#v15ChangeProfile'));
+            await tap(page.locator('#v15ProfileChip'));
             await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
           }
 
@@ -80,9 +79,10 @@ jobs:
           await createPlan();
           let chip=await page.locator('#v15ProfileChip').innerText();
           if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('male chip wrong: '+chip);
+          if(await page.locator('#v15ChangeProfile').count())throw new Error('obsolete hidden profile switch still present');
           const size=await page.evaluate(()=>({w:innerWidth,h:innerHeight}));
           if(size.w!==390||size.h!==844)throw new Error('viewport expanded '+JSON.stringify(size));
-          out('male profile + viewport OK');
+          out('male profile + canonical switch + viewport OK');
 
           await tap(page.locator('.bottom .nav[data-nav="program"]'));
           const maleTitles=[];
@@ -149,7 +149,7 @@ jobs:
           out('Femme restored with original progress');
 
           const resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name));
-          if(!resources.some(u=>u.includes('her12-v15.js?v=19')))throw new Error('V15 v19 asset not loaded');
+          if(!resources.some(u=>u.includes('her12-v15.js?v=20')))throw new Error('V15 v20 asset not loaded');
           const slots=await page.evaluate(()=>JSON.parse(localStorage.getItem('HER12_PROFILE_SLOTS_V16')||'{}'));
           if(!slots.male||!slots.female)throw new Error('both profile slots not persisted');
           if(errors.length)throw new Error(errors.join(' | '));
