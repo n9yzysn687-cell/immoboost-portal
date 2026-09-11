@@ -1,0 +1,73 @@
+/* HER12 v9 — single-lane workout, minimal chrome */
+.her9-ready #home #her4Week{display:none!important}
+.her9-ready #her4NextCard .v5AdaptRow{border-top:0;margin-top:6px;padding-top:0;justify-content:flex-end}
+.her9-ready #her4NextCard .v5AdaptMeta{display:none}
+.her9-ready #her4NextCard .v5AdaptBtn{border:0;background:transparent;color:#8f98a5;padding:0;min-height:28px;text-decoration:underline;text-underline-offset:3px}
+
+/* Workout mode: remove navigation and make the current task the whole screen. */
+.her9-ready.her9-workout .bottom{display:none!important}
+.her9-ready.her9-workout #exercise{padding-bottom:28px}
+.her9-ready.her9-workout #restTimer{bottom:14px}
+.her9-ready #exercise .previousCard{display:none!important}
+.her9-ready #smartTargetCard{margin:6px 0 10px;padding:9px 11px;background:#0f141a;border:1px solid #242c36}
+.her9-ready #smartTargetCard .eyebrow{display:none}
+.her9-ready #smartTargetCard strong{font-size:10px}
+.her9-ready #smartTargetCard p{font-size:9px;margin:2px 0 0;color:#9ca5b1}
+.her9-ready #her4Technique{display:inline-flex;align-items:center;gap:5px;width:auto;min-height:30px;color:#8e98a5;font-size:9.5px;padding:0;margin:0 0 6px}
+.her9-ready #her4Technique::before{content:'?';display:inline-grid;place-items:center;width:18px;height:18px;border:1px solid #343d49;border-radius:50%;font-size:10px;color:#aab2bc}
+
+/* Sets become the visual center. */
+.her9-ready #setRows .setRow{transition:border-color .12s ease,background .12s ease,opacity .12s ease}
+.her9-ready #setRows .setRow.v9Current{border-color:#596574;background:#19212a}
+.her9-ready #setRows .setRow.v9Done{opacity:.55}
+.her9-ready #setRows .setCheck{min-width:42px;min-height:38px;border-radius:11px}
+.her9-ready #setRows .setRow.v9Current .setCheck{border-color:#ff7fa1}
+.her9-ready #v9SetHint{font-size:9px;color:#8f98a4;margin:5px 0 0;text-align:center}
+.her9-ready #v7Reuse{display:none!important}
+
+/* Keep only one clear decision after the sets. */
+.her9-ready .v7RatingTitle b{font-size:11px}
+.her9-ready #painBtn{opacity:.82}
+.her9-ready .v7NoteToggle{display:none!important}
+.her9-ready #exerciseNote{display:none!important}
+
+/* Plan is a lightweight fallback, not a cockpit. */
+.her9-ready #program .readinessCard{border:0;background:transparent;padding:5px 0 8px;margin:0}
+.her9-ready #program .readinessCard>strong{display:none}
+.her9-ready #readyBtns{margin:0}
+.her9-ready #readyBtns::before{content:'Forme';display:flex;align-items:center;color:#87919e;font-size:9px;padding-right:4px}
+.her9-ready #readyBtns button{min-height:34px;border-radius:10px;background:#11161c;border-color:#262e38}
+.her9-ready #readyAlert{border:0;background:transparent;padding:4px 0;color:#a6afb9}
+.her9-ready #v5CoachBar{display:none!important}
+.her9-ready #program #sessionCardio{display:none!important}
+.her9-ready #sessionTabs button{font-size:0}
+.her9-ready #sessionTabs button::after{font-size:10px}
+.her9-ready #sessionTabs button:nth-child(1)::after{content:'Séance 1'}
+.her9-ready #sessionTabs button:nth-child(2)::after{content:'Séance 2'}
+.her9-ready #sessionTabs button:nth-child(3)::after{content:'Séance 3'}
+
+/* Summary: celebrate, ask one thing, leave. */
+.her9-ready #summary>.eyebrow{display:none}
+.her9-ready #summary>h1{font-size:32px;margin-top:14px}
+.her9-ready #summary>.muted{font-size:11px}
+.her9-ready #summaryList{background:transparent;border:0;padding:0}
+.her9-ready #summaryList>*{font-size:10px}
+.her9-ready #v5Feedback{border-radius:16px;padding:12px}
+.her9-ready #v5Feedback p{display:none}
+.her9-ready #v5Feedback b{font-size:11px}
+.her9-ready #v5FeedbackBtns button{min-height:44px;font-size:10px}
+
+/* Onboarding: reduce copy and decorative density. */
+.her9-ready .her4OnboardInner{max-width:440px}
+.her9-ready .her4OnboardInner h1{font-size:28px;line-height:1.08}
+.her9-ready .her4OnboardInner p{font-size:11px;line-height:1.45;color:#98a2ad}
+.her9-ready .her4Brand{font-size:11px;opacity:.7}
+.her9-ready .her4Overline{font-size:9px}
+.her9-ready .her4Days button,.her9-ready .her4Goals button{min-height:54px;border-radius:13px}
+.her9-ready .her4Days button span,.her9-ready .her4Goals button span{font-size:8.5px}
+
+@media(max-width:380px){
+  .her9-ready #smartTargetCard{padding:8px 9px}
+  .her9-ready #setRows .setCheck{min-width:38px}
+  .her9-ready .her4OnboardInner h1{font-size:25px}
+}
