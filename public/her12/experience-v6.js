@@ -95,6 +95,9 @@
 })();
 
 (()=>{
-  if(!document.querySelector('link[href="./experience-v7.css"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='./experience-v7.css';document.head.appendChild(l)}
-  if(!document.querySelector('script[src="./experience-v7.js"]')){const s=document.createElement('script');s.src='./experience-v7.js';s.async=false;document.body.appendChild(s)}
+  const loadV7=()=>{
+    if(!document.querySelector('link[href="./experience-v7.css"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='./experience-v7.css';document.head.appendChild(l)}
+    if(!document.querySelector('script[src="./experience-v7.js"]')){const s=document.createElement('script');s.src='./experience-v7.js';s.async=false;s.onerror=()=>console.warn('HER12 v7 experience layer unavailable');document.body.appendChild(s)}
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadV7,{once:true});else loadV7();
 })();
