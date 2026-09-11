@@ -1,4 +1,4 @@
-name: HER12 Final Touch Check
+name: HER12 V15 Mobile Check
 
 on:
   push:
@@ -14,29 +14,44 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Verify first-run, touch, workout, schedule and reset
+      - name: Verify male profile, workout and reset
         run: |
-          cat > her12-final.mjs <<'EOF'
+          cat > her12-v15.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser=await chromium.launch({headless:true});
           const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          page.setDefaultTimeout(5000);
+          page.setDefaultTimeout(6000);
           const errors=[];
           page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
           page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-          const log=x=>console.log('[HER12] '+x);
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?final-touch=1',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.waitForSelector('.her4Onboarding',{state:'visible',timeout:20000});
-          log('first-run visible');
-          if(await page.locator('.her4Days [data-day].active').count()!==3)throw new Error('three default days not selected');
+          const log=x=>console.log('[HER12 V15] '+x);
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?v15-touch=1',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:20000});
+          log('profile gate visible');
+          await page.locator('[data-sex="male"]').click();
+          await page.locator('[data-run="3"]').click();
+          await page.locator('.her4Onboarding').waitFor({state:'visible'});
+          log('male + 3 runs selected');
           await page.locator('.her4Onboarding [data-next="2"]').click();
           await page.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});
-          log('plan preview visible');
           await page.locator('#her4Create').click();
           await page.locator('.her4Onboarding').waitFor({state:'detached',timeout:10000});
-          log('program created');
+          const chip=await page.locator('#v15ProfileChip').innerText();
+          if(!chip.includes('Homme'))throw new Error('male profile chip missing: '+chip);
+          log('program created: '+chip);
 
-          for(const [label,id] of [['Séances','program'],['Suivi','tracking'],['Mesures','body'],['Guide','more'],['Accueil','home']]){
+          await page.getByRole('button',{name:/Séances/i}).last().click();
+          const titleA=await page.locator('#sessionTitle').innerText();
+          if(!titleA.includes('Upper A'))throw new Error('Upper A missing: '+titleA);
+          await page.locator('#sessionTabs button').nth(1).click();
+          const titleB=await page.locator('#sessionTitle').innerText();
+          if(!titleB.includes('Running Strength'))throw new Error('Running Strength missing: '+titleB);
+          await page.locator('#sessionTabs button').nth(2).click();
+          const titleC=await page.locator('#sessionTitle').innerText();
+          if(!titleC.includes('Upper B'))throw new Error('Upper B missing: '+titleC);
+          log('split works: '+titleA+' | '+titleB+' | '+titleC);
+
+          for(const [label,id] of [['Suivi','tracking'],['Mesures','body'],['Guide','more'],['Accueil','home']]){
             await page.getByRole('button',{name:new RegExp(label,'i')}).last().click();
             await page.waitForTimeout(100);
             const active=await page.locator('.screen:not(.hidden)').getAttribute('id');
@@ -44,35 +59,34 @@ jobs:
             log(label+' works');
           }
 
-          await page.locator('#her4NextCard .cta').click();
+          await page.getByRole('button',{name:/Séances/i}).last().click();
+          await page.locator('#sessionTabs button').first().click();
           await page.locator('#exerciseList .exerciseRow').first().click();
           await page.locator('#setRows .setCheck').first().click();
           await page.waitForTimeout(150);
           if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer hidden');
-          log('set check starts timer: '+await page.locator('#timerText').innerText());
+          log('timer started: '+await page.locator('#timerText').innerText());
           await page.locator('#timerSkip').click();
 
           await page.getByRole('button',{name:/Séances/i}).last().click();
           const change=page.getByRole('button',{name:/Changer mes jours/i}).first();
-          if(!await change.isVisible())throw new Error('change days not visible');
           await change.click();
           await page.locator('.her4Onboarding').waitFor({state:'visible'});
-          if(await page.locator('.her4Days [data-day].active').count()!==3)throw new Error('current days not retained');
-          log('change days opens with current selection');
+          if(await page.locator('.her4Days [data-day].active').count()!==3)throw new Error('saved days missing');
+          log('change days works');
           const close=page.getByRole('button',{name:'Fermer'});
           if(await close.isVisible().catch(()=>false))await close.click();
 
           await page.getByRole('button',{name:/Guide/i}).last().click();
           const reset=page.getByRole('button',{name:/Recommencer HER12 à zéro/i});
-          if(!await reset.isVisible())throw new Error('reset not visible');
           page.once('dialog',d=>d.accept());
           await reset.click({noWaitAfter:true});
-          await page.waitForSelector('.her4Onboarding',{state:'visible',timeout:20000});
-          log('full reset returns to day selection');
-          const stateAfter=await page.evaluate(()=>({profile:localStorage.getItem('HER12_PROFILE_V4'),state:localStorage.getItem('HER12_PRIVATE_V2')}));
-          if(stateAfter.profile||stateAfter.state)throw new Error('reset did not clear local state');
+          await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:20000});
+          const stateAfter=await page.evaluate(()=>({meta:localStorage.getItem('HER12_META_V15'),profile:localStorage.getItem('HER12_PROFILE_V4'),state:localStorage.getItem('HER12_PRIVATE_V2')}));
+          if(stateAfter.meta||stateAfter.profile||stateAfter.state)throw new Error('reset did not clear local state');
+          log('reset returns to Homme/Femme choice');
           if(errors.length)throw new Error(errors.join(' | '));
           await browser.close();
-          log('HER12_FINAL_TOUCH_OK');
+          log('HER12_V15_TOUCH_OK');
           EOF
-          node her12-final.mjs
+          node her12-v15.mjs
