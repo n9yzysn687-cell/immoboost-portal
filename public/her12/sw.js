@@ -1,4 +1,4 @@
-const CACHE="her12-v14";
+const CACHE="her12-v15";
 const SHELL=[
   "./","./index.html","./styles-v2.css","./enhancements-v3.css","./experience-v4.css","./experience-v5.css","./experience-v6.css","./experience-v7.css","./experience-v8.css","./experience-v9.css","./experience-v10.css","./experience-v11.css","./program-v2.js","./runtime-v2.js","./enhancements-v3.js","./experience-v4b.js","./experience-v5.js","./experience-v6.js","./experience-v7.js","./experience-v8.js","./experience-v9.js","./experience-v10.js","./experience-v11.js","./manifest.webmanifest","./icon.svg","./apple-touch-icon.png"
 ];
