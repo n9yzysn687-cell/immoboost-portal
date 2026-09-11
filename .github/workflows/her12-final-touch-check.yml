@@ -1,36 +1,47 @@
-name: HER12 V15 Bundle Probe
+name: HER12 V15 Boot Diagnostic
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  probe:
-    timeout-minutes: 2
+  diagnose:
+    timeout-minutes: 3
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect actual public app bundle
+      - name: Install Playwright
         run: |
-          set -euo pipefail
-          BASE='https://her12-1plk7r.v2.appdeploy.ai'
-          curl -fsSL "$BASE/?bundle-probe=2" -o /tmp/root.html
-          ASSET=$(grep -oE 'src="\.\/assets\/index-[^"]+\.js"' /tmp/root.html | head -1 | cut -d'"' -f2)
-          echo "APP_ASSET=$ASSET"
-          test -n "$ASSET"
-          curl -fsSL "$BASE/${ASSET#./}" -o /tmp/app.js
-          echo '=== MAIN FLAGS ==='
-          grep -q 'her12-v15.js' /tmp/app.js
-          grep -q 'her12-base' /tmp/app.js
-          echo 'main bundle references V15 + local base'
-          echo '=== DIRECT V15 ==='
-          curl -fsSL "$BASE/her12-v15.js?v=1" -o /tmp/v15.js
-          grep -q 'v15ProfileGate' /tmp/v15.js
-          grep -q 'Running Strength' /tmp/v15.js
-          echo 'V15 profile gate + male program present'
-          echo '=== LOCAL BASE ==='
-          curl -fsSL "$BASE/her12-base/index.txt" -o /tmp/base.txt
-          grep -q 'HER12' /tmp/base.txt
-          curl -fsSL "$BASE/her12-base/program-v2.js" -o /tmp/program.js
-          grep -q 'const PROGRAM' /tmp/program.js
-          echo 'local V13 markup + program present'
-          echo 'HER12_V15_BUNDLE_PROBE_OK'
+          npm init -y >/dev/null 2>&1
+          npm install --no-save playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null 2>&1
+      - name: Diagnose browser boot
+        run: |
+          cat > her12-diagnose.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
+          const errors=[]; const failed=[];
+          page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
+          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+          page.on('requestfailed',r=>failed.push(r.url()+' :: '+(r.failure()?.errorText||'')));
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?boot-diagnostic=1',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.waitForTimeout(5000);
+          const snapshot=await page.evaluate(()=>({
+            title:document.title,
+            htmlClass:document.documentElement.className,
+            bootText:document.querySelector('#bootStatus')?.textContent||null,
+            gate:!!document.querySelector('.v15ProfileGate'),
+            onboarding:!!document.querySelector('.her4Onboarding'),
+            home:!!document.querySelector('#home'),
+            programType:typeof window.PROGRAM,
+            stateType:typeof window.state,
+            v15Script:!!document.querySelector('script[data-her12-bundle="v15"]'),
+            bodyText:(document.body?.innerText||'').slice(0,1200),
+          }));
+          console.log('SNAPSHOT='+JSON.stringify(snapshot));
+          console.log('ERRORS='+JSON.stringify(errors));
+          console.log('FAILED='+JSON.stringify(failed));
+          console.log('HTML='+((await page.locator('body').innerHTML()).slice(0,2500)).replace(/\n/g,' '));
+          await browser.close();
+          EOF
+          node her12-diagnose.mjs
