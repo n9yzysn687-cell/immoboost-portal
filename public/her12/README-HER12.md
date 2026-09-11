@@ -37,10 +37,16 @@ Workout logs, drafts and measurements are stored in browser `localStorage`. No H
 
 Open HER12 in Safari, tap **Share**, then **Add to Home Screen**. The PWA uses an Apple touch icon, a standalone manifest and a service worker. The app shell and exercise images are cached for faster repeat use and offline resilience.
 
-## Release checks
+## Automated release QA
 
-- GitHub Quality Check must be green.
-- Vercel deployment must be Ready.
+The repository runs `node scripts/her12-qa.mjs` on every pull request before type-check and production build. It verifies the A/B/C program structure, unique exercise IDs, phase-set definitions, repetition and rest ranges, five-step coaching, every referenced local media file, service-worker precaching and required app-shell references.
+
+The final release gate is:
+
+- HER12 product QA: green.
+- TypeScript type-check: green.
+- Next.js production build: green.
+- Vercel deployment: Ready.
 - A normal exercise cannot be validated while prescribed sets remain unchecked.
 - The explicit pain flow can exit an exercise without forcing the remaining sets.
 - A session is complete only when every active exercise has a saved record.
