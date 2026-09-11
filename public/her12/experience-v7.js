@@ -1,9 +1,9 @@
 (()=>{
   const q=s=>document.querySelector(s),qq=s=>[...document.querySelectorAll(s)];
 
-  function nextSessionSlot(){
-    for(const s of ["A","B","C"]) if(!state.completed[`${state.week}|${s}`]) return s;
-    return state.week<12?"A":null;
+  function nextSessionTarget(){
+    for(const s of ["A","B","C"]) if(!state.completed[`${state.week}|${s}`]) return{week:state.week,session:s};
+    return state.week<12?{week:state.week+1,session:"A"}:null;
   }
   function firstUnfinishedIndex(session){
     const list=activeExercises(session);
@@ -11,27 +11,32 @@
     return i<0?0:i;
   }
 
+  /* Repair a legacy markup nesting issue without forcing a migration of saved installs. */
+  function repairLoadControl(){
+    const plus=q("#plusLoad"),control=q("#exercise .loadControl");
+    if(plus&&control&&plus.parentElement!==control)control.appendChild(plus);
+  }
+
   /* One-tap start from Today. The Plan stays available, but it is no longer a mandatory stop. */
   function directStart(){
     const card=q("#her4NextCard"),button=card?.querySelector(".cta");
     if(!button||button.textContent.trim()==="Reprendre") return;
-    const slot=nextSessionSlot();
-    if(!slot) return;
-    button.textContent="Commencer maintenant";
+    const target=nextSessionTarget();
+    if(!target) return;
+    button.textContent=target.week>state.week?"Commencer la semaine suivante":"Commencer maintenant";
     button.onclick=()=>{
-      state.session=slot;
-      state.exerciseIndex=firstUnfinishedIndex(slot);
+      state.week=target.week;
+      state.session=target.session;
+      state.exerciseIndex=firstUnfinishedIndex(target.session);
       saveState(true);
       go("program");
       requestAnimationFrame(()=>{
         const rows=qq("#exerciseList .exerciseRow");
-        const target=rows[state.exerciseIndex]||rows[0];
-        target?.click();
+        const row=rows[state.exerciseIndex]||rows[0];
+        row?.click();
       });
     };
   }
-  const home0=renderHome;
-  renderHome=function(){home0();directStart()};
 
   function setNativeChoice(feel,form){
     const feelBox=q("#feelBtns"),formBox=q("#formBtns");
@@ -62,8 +67,7 @@
         if(rate==="good")setNativeChoice("good","clean");
         if(rate==="hard")setNativeChoice("hard","bad");
         box.querySelectorAll("[data-rate]").forEach(x=>x.classList.toggle("active",x===btn));
-        const rows=qq("#setRows .setCheck");
-        if(rows.length&&rows.every(x=>x.classList.contains("done"))) q("#validateExercise")?.classList.add("v7Ready");
+        completionAssist();
       };
     });
   }
@@ -93,11 +97,12 @@
   }
 
   function completionAssist(){
-    const checks=qq("#setRows .setCheck"),all=checks.length&&checks.every(x=>x.classList.contains("done")),rating=q("#v7Rating"),validate=q("#validateExercise");
+    const checks=qq("#setRows .setCheck"),all=checks.length&&checks.every(x=>x.classList.contains("done")),rating=q("#v7Rating"),validate=q("#validateExercise"),choice=nativeChoice(),pain=choice.feel==="pain";
     if(!rating||!validate)return;
-    rating.classList.toggle("v7Attention",all&&!nativeChoice().feel);
-    validate.classList.toggle("v7Ready",all&&Boolean(nativeChoice().feel)&&Boolean(nativeChoice().form));
-    if(all&&!nativeChoice().feel){setTimeout(()=>rating.scrollIntoView({behavior:"smooth",block:"center"}),80)}
+    rating.classList.toggle("v7Attention",all&&!choice.feel&&!pain);
+    validate.classList.toggle("v7Ready",pain||(all&&Boolean(choice.feel)&&Boolean(choice.form)));
+    validate.setAttribute("aria-disabled",String(!(pain||(all&&choice.feel&&choice.form))));
+    if(all&&!choice.feel&&!pain)setTimeout(()=>rating.scrollIntoView({behavior:"smooth",block:"center"}),80);
   }
 
   function progressLabel(){
@@ -108,16 +113,19 @@
 
   const exercise0=renderExercise;
   renderExercise=function(){
-    exercise0();ratingBlock();compactNote();reuseLastReps();progressLabel();completionAssist();
+    exercise0();repairLoadControl();ratingBlock();compactNote();reuseLastReps();progressLabel();completionAssist();
   };
 
+  /* Prevent accidental completion: all prescribed sets must be checked, except when pain stops the exercise. */
   document.addEventListener("click",event=>{
-    if(event.target.closest("#setRows .setCheck")) setTimeout(completionAssist,20);
-    if(event.target.closest("#painBtn")){
-      q("#v7Rating")?.querySelectorAll("button").forEach(x=>x.classList.remove("active"));
-      q("#validateExercise")?.classList.add("v7Ready");
-    }
-  },{passive:true});
+    if(event.target.closest("#setRows .setCheck"))setTimeout(completionAssist,20);
+    if(event.target.closest("#painBtn"))setTimeout(completionAssist,20);
+    const validate=event.target.closest("#validateExercise");
+    if(!validate)return;
+    const choice=nativeChoice(),pain=choice.feel==="pain",checks=qq("#setRows .setCheck"),all=checks.length&&checks.every(x=>x.classList.contains("done"));
+    if(!pain&&!all){event.preventDefault();event.stopImmediatePropagation();const d=q("#decision");if(d){d.className="decision bad";d.textContent="Termine ou coche chaque série avant de valider."}q("#setRows")?.scrollIntoView({behavior:"smooth",block:"center"});return}
+    if(!pain&&(!choice.feel||!choice.form)){event.preventDefault();event.stopImmediatePropagation();q("#v7Rating")?.classList.add("v7Attention");q("#v7Rating")?.scrollIntoView({behavior:"smooth",block:"center"})}
+  },true);
 
   /* Make Today feel current without adding another dashboard widget. */
   function todayLabel(){
@@ -125,8 +133,8 @@
     const day=new Intl.DateTimeFormat("fr-BE",{weekday:"long"}).format(new Date());
     sub.textContent=`${day.charAt(0).toUpperCase()+day.slice(1)} • semaine ${state.week}`;
   }
-  const home1=renderHome;
-  renderHome=function(){home1();todayLabel();directStart()};
+  const home0=renderHome;
+  renderHome=function(){home0();todayLabel();directStart()};
 
   document.documentElement.classList.add("her7-ready");
   renderHome();
