@@ -1,4 +1,4 @@
-name: HER12 Suivi UI Trace
+name: HER12 Public Asset Diagnostic
 
 on:
   push:
@@ -7,30 +7,14 @@ on:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
-      - name: Install Playwright
+      - name: Inspect public V15 v17 asset
         run: |
-          npm init -y >/dev/null 2>&1
-          npm install --no-save playwright@1.55.0 >/dev/null 2>&1
-          npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect Suivi UI
-        run: |
-          cat > trace.mjs <<'EOF'
-          import { chromium } from 'playwright';
-          const browser=await chromium.launch({headless:true});
-          const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          const page=await context.newPage();page.setDefaultTimeout(12000);
-          const tap=async l=>{await l.waitFor({state:'visible'});await l.scrollIntoViewIfNeeded();const b=await l.boundingBox();await page.touchscreen.tap(b.x+b.width/2,b.y+b.height/2);await page.waitForTimeout(130)};
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?diag=suivi-ui',{waitUntil:'domcontentloaded',timeout:20000});
-          await page.locator('.v15ProfileGate').waitFor({state:'visible'});await tap(page.locator('[data-sex="male"]'));await page.locator('[data-run="3"]').waitFor({state:'visible'});await tap(page.locator('[data-run="3"]'));
-          const root=page.locator('.her4Onboarding');await root.waitFor({state:'visible'});for(const day of ['0','2','4']){const b=root.locator(`.her4Days [data-day="${day}"]`);if(!await b.evaluate(el=>el.classList.contains('active')))await tap(b)}
-          await tap(root.locator('[data-step="1"] [data-next="2"]'));await root.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});await tap(root.locator('#her4Create'));await root.waitFor({state:'detached'});
-          await tap(page.locator('.bottom .nav[data-nav="tracking"]'));
-          console.log('TRACKING_TEXT='+JSON.stringify((await page.locator('#tracking').innerText()).slice(0,1800)));
-          console.log('VISIBLE_CONTROLS='+JSON.stringify(await page.locator('#tracking button:visible, #tracking a:visible, #tracking [role="button"]:visible').evaluateAll(els=>els.map(el=>({tag:el.tagName,id:el.id,cls:el.className,text:(el.innerText||el.getAttribute('aria-label')||'').trim().slice(0,120)})))));
-          console.log('BODY_VISIBLE='+await page.locator('#body').isVisible().catch(()=>false));
-          console.log('MEASURES_VISIBLE='+await page.locator('#v5Measures').isVisible().catch(()=>false));
-          await browser.close();
-          EOF
-          node trace.mjs
+          url='https://her12-1plk7r.v2.appdeploy.ai/her12-v15.js?v=17'
+          code=$(curl -L -sS -o /tmp/v15.js -w '%{http_code}' --max-time 20 "$url")
+          echo "HTTP=$code BYTES=$(wc -c </tmp/v15.js)"
+          echo "HAS_PATCH=$(grep -q 'patchTrackingProfile' /tmp/v15.js && echo yes || echo no)"
+          echo "HAS_PECTORAUX=$(grep -q 'Pectoraux' /tmp/v15.js && echo yes || echo no)"
+          echo "HAS_FEMALE_GATE=$(grep -q 'Qui va utiliser HER12' /tmp/v15.js && echo yes || echo no)"
+          grep -n -m1 'patchTrackingProfile\|Pectoraux' /tmp/v15.js || true
