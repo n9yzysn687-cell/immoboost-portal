@@ -9,23 +9,28 @@ jobs:
     timeout-minutes: 2
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect public bundle
+      - name: Inspect actual public app bundle
         run: |
           set -euo pipefail
           BASE='https://her12-1plk7r.v2.appdeploy.ai'
-          curl -fsSL "$BASE/?bundle-probe=1" -o /tmp/root.html
-          echo '=== ROOT ==='
-          sed -n '1,80p' /tmp/root.html
-          ASSET=$(grep -oE 'src="[^"]+\.js"' /tmp/root.html | head -1 | cut -d'"' -f2)
-          echo "ASSET=$ASSET"
+          curl -fsSL "$BASE/?bundle-probe=2" -o /tmp/root.html
+          ASSET=$(grep -oE 'src="\.\/assets\/index-[^"]+\.js"' /tmp/root.html | head -1 | cut -d'"' -f2)
+          echo "APP_ASSET=$ASSET"
+          test -n "$ASSET"
           curl -fsSL "$BASE/${ASSET#./}" -o /tmp/app.js
           echo '=== MAIN FLAGS ==='
-          grep -o 'her12-v15[^"'"' ]*' /tmp/app.js | head -20 || true
-          grep -n 'v15ProfileGate' /tmp/app.js | head -3 || true
+          grep -q 'her12-v15.js' /tmp/app.js
+          grep -q 'her12-base' /tmp/app.js
+          echo 'main bundle references V15 + local base'
           echo '=== DIRECT V15 ==='
-          curl -fsSL "$BASE/her12-v15.js" -o /tmp/v15.js
-          grep -n 'v15ProfileGate' /tmp/v15.js | head -3
+          curl -fsSL "$BASE/her12-v15.js?v=1" -o /tmp/v15.js
+          grep -q 'v15ProfileGate' /tmp/v15.js
+          grep -q 'Running Strength' /tmp/v15.js
+          echo 'V15 profile gate + male program present'
           echo '=== LOCAL BASE ==='
           curl -fsSL "$BASE/her12-base/index.txt" -o /tmp/base.txt
-          grep -n 'HER12' /tmp/base.txt | head -3
+          grep -q 'HER12' /tmp/base.txt
+          curl -fsSL "$BASE/her12-base/program-v2.js" -o /tmp/program.js
+          grep -q 'const PROGRAM' /tmp/program.js
+          echo 'local V13 markup + program present'
           echo 'HER12_V15_BUNDLE_PROBE_OK'
