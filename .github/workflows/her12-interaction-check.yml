@@ -13,78 +13,92 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Exercise HER12 like a first-time iPhone user
+      - name: Exercise fixed HER12 like a first-time iPhone user
         run: |
           cat > her12-check.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({headless:true});
-          const page = await browser.newPage({viewport:{width:390,height:844}, deviceScaleFactor:3, isMobile:true, hasTouch:true});
+          const page = await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const errors=[]; const logs=[];
-          page.on('pageerror', e=>errors.push('PAGEERROR '+e.message));
-          page.on('console', m=>{ if(m.type()==='error') errors.push('CONSOLE '+m.text()); });
-          await page.goto('https://herfit12.vercel.app/?e2e=first-run',{waitUntil:'domcontentloaded',timeout:30000});
-          await page.waitForTimeout(3000);
+          page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
+          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?e2e=mobile',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.waitForSelector('.her4Onboarding,#home .topHeader',{state:'visible',timeout:25000});
           logs.push('TITLE='+await page.title());
+          logs.push('BOOT_LOADER_PRESENT='+await page.locator('#bootStatus').count());
 
           const onboard=page.locator('.her4Onboarding');
           logs.push('ONBOARD_VISIBLE='+await onboard.isVisible().catch(()=>false));
           if(await onboard.isVisible().catch(()=>false)){
-            const days=page.locator('.her4Days [data-day]');
-            logs.push('DAY_BUTTONS='+await days.count());
-            const active=page.locator('.her4Days [data-day].active');
-            logs.push('DEFAULT_ACTIVE_DAYS='+await active.count());
+            logs.push('DAY_BUTTONS='+await page.locator('.her4Days [data-day]').count());
+            logs.push('DEFAULT_ACTIVE_DAYS='+await page.locator('.her4Days [data-day].active').count());
             const cont=page.locator('.her4Onboarding [data-next="2"]');
             logs.push('CONT_DISABLED='+await cont.isDisabled());
             await cont.click({timeout:5000});
+            await page.locator('.her4Step[data-step="3"]').waitFor({state:'visible',timeout:5000});
+            logs.push('STEP3_VISIBLE=true');
+            await page.locator('#her4Create').click({timeout:5000});
+            await page.waitForSelector('#home .topHeader',{state:'visible',timeout:15000});
             await page.waitForTimeout(400);
-            logs.push('STEP3_VISIBLE='+await page.locator('.her4Step[data-step="3"]').isVisible().catch(()=>false));
-            const create=page.locator('#her4Create');
-            logs.push('CREATE_VISIBLE='+await create.isVisible().catch(()=>false));
-            await create.click({timeout:5000});
-            await page.waitForTimeout(500);
-            logs.push('ONBOARD_AFTER_CREATE='+await onboard.isVisible().catch(()=>false));
+            logs.push('ONBOARD_AFTER_CREATE='+await page.locator('.her4Onboarding').isVisible().catch(()=>false));
           }
 
           const navMap=[['Séances','program'],['Suivi','tracking'],['Mesures','body'],['Guide','more'],['Accueil','home']];
           for(const [name,id] of navMap){
             const b=page.getByRole('button',{name:new RegExp(name,'i')}).last();
-            logs.push(`NAV_${name}_COUNT=`+await b.count());
+            logs.push(`NAV_${name}_VISIBLE=`+await b.isVisible().catch(()=>false));
             await b.click({timeout:5000});
-            await page.waitForTimeout(200);
-            logs.push(`NAV_${name}_ACTIVE=`+await page.locator('.screen:not(.hidden)').getAttribute('id'));
-            if((await page.locator('.screen:not(.hidden)').getAttribute('id'))!==id) throw new Error(`nav ${name} failed`);
+            await page.waitForTimeout(150);
+            const active=await page.locator('.screen:not(.hidden)').getAttribute('id');
+            logs.push(`NAV_${name}_ACTIVE=`+active);
+            if(active!==id)throw new Error(`nav ${name} failed: ${active}`);
           }
 
           const start=page.locator('#her4NextCard .cta').first();
           logs.push('START_VISIBLE='+await start.isVisible().catch(()=>false));
           await start.click({timeout:5000});
-          await page.waitForTimeout(300);
+          await page.waitForTimeout(200);
           logs.push('AFTER_START='+await page.locator('.screen:not(.hidden)').getAttribute('id'));
-
           const ex=page.locator('#exerciseList .exerciseRow').first();
           logs.push('EX_VISIBLE='+await ex.isVisible().catch(()=>false));
           await ex.click({timeout:5000});
-          await page.waitForTimeout(300);
+          await page.waitForTimeout(200);
           logs.push('AFTER_EX='+await page.locator('.screen:not(.hidden)').getAttribute('id'));
 
           const check=page.locator('#setRows .setCheck').first();
           logs.push('SET_CHECK_VISIBLE='+await check.isVisible().catch(()=>false));
           await check.click({timeout:5000});
-          await page.waitForTimeout(250);
-          logs.push('TIMER_VISIBLE='+!(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden'))));
+          await page.waitForTimeout(200);
+          const timerVisible=!(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')));
+          logs.push('TIMER_VISIBLE='+timerVisible);
           logs.push('TIMER_TEXT='+await page.locator('#timerText').innerText());
+          if(!timerVisible)throw new Error('rest timer did not start');
+          await page.locator('#timerSkip').click({timeout:5000});
+
+          await page.getByRole('button',{name:/Séances/i}).last().click({timeout:5000});
+          await page.waitForTimeout(150);
+          const change=page.getByRole('button',{name:/Changer mes jours/i}).first();
+          logs.push('CHANGE_DAYS_VISIBLE='+await change.isVisible().catch(()=>false));
+          await change.click({timeout:5000});
+          await page.locator('.her4Onboarding').waitFor({state:'visible',timeout:5000});
+          logs.push('RECONFIG_VISIBLE=true');
+          logs.push('RECONFIG_ACTIVE_DAYS='+await page.locator('.her4Days [data-day].active').count());
+          const close=page.getByRole('button',{name:'Fermer'});
+          if(await close.isVisible().catch(()=>false))await close.click();
 
           await page.getByRole('button',{name:/Guide/i}).last().click({timeout:5000});
-          await page.waitForTimeout(250);
-          const changeDays=page.getByRole('button',{name:/Changer mes jours/i}).first();
-          logs.push('CHANGE_DAYS_VISIBLE='+await changeDays.isVisible().catch(()=>false));
-          await changeDays.click({timeout:5000});
-          await page.waitForTimeout(300);
-          logs.push('RECONFIG_VISIBLE='+await page.locator('.her4Onboarding').isVisible().catch(()=>false));
+          await page.waitForTimeout(150);
+          const reset=page.getByRole('button',{name:/Recommencer HER12 à zéro/i});
+          logs.push('RESET_VISIBLE='+await reset.isVisible().catch(()=>false));
+          page.once('dialog',dialog=>dialog.accept());
+          await reset.click({timeout:5000});
+          await page.waitForSelector('.her4Onboarding',{state:'visible',timeout:15000});
+          logs.push('RESET_RETURNED_TO_DAYS=true');
+          logs.push('RESET_ACTIVE_DAYS='+await page.locator('.her4Days [data-day].active').count());
 
           console.log(logs.join('\n'));
           console.log('ERRORS='+JSON.stringify(errors));
-          if(errors.length) process.exitCode=2;
+          if(errors.length)process.exitCode=2;
           await browser.close();
           EOF
           node her12-check.mjs
