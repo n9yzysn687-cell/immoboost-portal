@@ -1,4 +1,4 @@
-name: HER12 Mobile Nav Geometry Diagnostic
+name: HER12 Exact Mobile Nav Geometry
 
 on:
   push:
@@ -14,13 +14,14 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect nav geometry after onboarding
+      - name: Measure exact acceptance context
         run: |
-          cat > nav-geometry.mjs <<'EOF'
+          cat > nav-exact.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({ headless: true });
-          const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?nav-geometry=2', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+          const page = await context.newPage();
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?nav-exact=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
           await page.locator('.v15ProfileGate').waitFor({ state: 'visible' });
           await page.locator('[data-sex="male"]').click();
           await page.locator('[data-run="3"]').click();
@@ -41,20 +42,18 @@ jobs:
             const hr = home.getBoundingClientRect();
             const x = br.left + br.width / 2;
             const y = br.top + br.height / 2;
-            const stack = document.elementsFromPoint(x, y).map(el => ({ tag: el.tagName, id: el.id, cls: String(el.className), z: getComputedStyle(el).zIndex, pos: getComputedStyle(el).position, pe: getComputedStyle(el).pointerEvents }));
             return {
               viewport: { w: innerWidth, h: innerHeight, scrollY },
-              navRect: nr.toJSON(),
-              buttonRect: br.toJSON(),
-              homeRect: hr.toJSON(),
-              navStyle: { z: getComputedStyle(nav).zIndex, pos: getComputedStyle(nav).position, transform: getComputedStyle(nav).transform, pe: getComputedStyle(nav).pointerEvents, top: getComputedStyle(nav).top, bottom: getComputedStyle(nav).bottom },
-              buttonStyle: { z: getComputedStyle(button).zIndex, pos: getComputedStyle(button).position, pe: getComputedStyle(button).pointerEvents },
-              homeStyle: { z: getComputedStyle(home).zIndex, pos: getComputedStyle(home).position, pe: getComputedStyle(home).pointerEvents, transform: getComputedStyle(home).transform },
-              stack,
-              appStyle: { transform: getComputedStyle(document.querySelector('#app')).transform, pos: getComputedStyle(document.querySelector('#app')).position, z: getComputedStyle(document.querySelector('#app')).zIndex, overflow: getComputedStyle(document.querySelector('#app')).overflow },
+              navRect: nr.toJSON(), buttonRect: br.toJSON(), homeRect: hr.toJSON(),
+              navStyle: { z: getComputedStyle(nav).zIndex, pos: getComputedStyle(nav).position, pe: getComputedStyle(nav).pointerEvents },
+              homeStyle: { z: getComputedStyle(home).zIndex, pos: getComputedStyle(home).position, transform: getComputedStyle(home).transform },
+              stackAtCenter: document.elementsFromPoint(x,y).map(el => ({tag:el.tagName,id:el.id,cls:String(el.className),z:getComputedStyle(el).zIndex,pos:getComputedStyle(el).position})),
+              point: {x,y},
             };
           });
-          console.log('GEOMETRY=' + JSON.stringify(data));
+          console.log('EXACT=' + JSON.stringify(data));
+          try { await page.locator('.bottom .nav[data-nav="program"]').click({ timeout: 3000 }); console.log('CLICK=OK'); } catch (e) { console.log('CLICK=FAIL ' + e.message); }
+          await context.close();
           await browser.close();
           EOF
-          node nav-geometry.mjs
+          node nav-exact.mjs
