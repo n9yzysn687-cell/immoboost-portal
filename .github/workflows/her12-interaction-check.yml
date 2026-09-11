@@ -18,7 +18,7 @@ jobs:
         run: |
           cat > her12-final.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v20-green';
+          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=final-v20-green-2';
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage(); page.setDefaultTimeout(12000);
@@ -26,6 +26,7 @@ jobs:
           page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
           page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
           page.on('requestfailed',r=>{if(r.url().includes('her12-1plk7r.v2.appdeploy.ai'))errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||''))});
+          page.on('dialog',async d=>{await d.accept()});
           const out=s=>console.log('[HER12] '+s);
           async function tap(locator){
             await locator.waitFor({state:'visible'}); await locator.scrollIntoViewIfNeeded();
@@ -49,7 +50,6 @@ jobs:
           async function switchToChooser(){
             await tap(page.locator('.bottom .nav[data-nav="home"]')); await page.locator('#v15ProfileChip').waitFor({state:'visible'});
             const gate=page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
-            page.once('dialog',async d=>{await d.accept()});
             await tap(page.locator('#v15ProfileChip')); await gate;
           }
           await page.goto(URL,{waitUntil:'domcontentloaded',timeout:20000});
