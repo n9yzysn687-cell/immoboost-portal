@@ -13,28 +13,38 @@ Private-use, mobile-first fitness tracker for a 12-week, 3-session-per-week resi
 - Pain stops progression for that exercise.
 - Coaching text avoids acronyms and training jargon.
 
-## Data and privacy
+## Final user flow
 
-Workout logs, drafts and measurements are stored in browser localStorage. Export/import is available as JSON. The current Vercel preview URL is public but marked noindex; treat it as a convenience link, not authenticated private storage.
+1. Choose the current week and session A, B or C.
+2. Select how recovered you feel today.
+3. Open each exercise and read **why**, **where to feel it**, and the five technique steps.
+4. Log the load and repetitions set by set. A rest timer starts when a set is checked.
+5. Report how difficult the exercise felt and whether technique stayed clean.
+6. HER12 prepares the recommendation for the next exposure: keep the load, add repetitions, increase slightly, reduce, or stop progression if pain was reported.
+7. Progress, notes, measurements and history stay stored locally in the browser and can be exported/imported as JSON.
 
-## Media ship gate
+## Media
 
-The app first requests `public/her12/assets/<exercise>.jpg`. Until final dedicated assets are committed there, the preview falls back to external Pexels images.
+Exercise media is vendored locally under `public/her12/assets/`. HER12 therefore does not depend on those image hosts during normal use and the service worker pre-caches the local exercise media for offline use after installation.
 
-The visual layer is not final until every exercise has a technically correct, dedicated adult-female demonstration asset. Final media should use a consistent adult subject and gym environment where feasible and must not use cropped tutorial sheets.
+The media pack uses free-to-use Pexels photography selected for private, non-commercial use. Coaching text is the source of truth for execution. Exercise names were adjusted where needed so the written instruction and the selected visual do not intentionally teach conflicting movements.
 
-A media asset is rejected if it demonstrates a materially different technique from the coaching instructions. In particular, the Lat Pulldown visual must show a front-to-upper-chest pulldown, not a behind-the-neck variation.
+## Privacy
 
-## QA ship gate
+Workout logs, drafts and measurements are stored in browser `localStorage`. No HER12 account or remote fitness database is used. The Vercel URL is public but marked `noindex`; anyone who receives the link can still open it, so it should only be shared with the intended person.
 
-Before treating HER12 as final:
+## iPhone installation
 
-1. GitHub Quality Check passes.
-2. Vercel preview is Ready.
-3. Complete A, B and C end-to-end on iPhone Safari, including backgrounding and returning during the rest timer.
-4. Verify every exercise visual corresponds to the named movement and the written technique.
-5. Export and re-import a backup.
-6. Confirm an incomplete session cannot be accidentally marked complete.
-7. Confirm the explicit pain-stop flow can exit an exercise without forcing remaining sets.
-8. Confirm the interface remains usable if a media request fails.
-9. Confirm the installed home-screen version receives updated program and app-shell files after a new deployment.
+Open HER12 in Safari, tap **Share**, then **Add to Home Screen**. The PWA uses an Apple touch icon, a standalone manifest and a service worker. The app shell and exercise images are cached for faster repeat use and offline resilience.
+
+## Release checks
+
+- GitHub Quality Check must be green.
+- Vercel deployment must be Ready.
+- A normal exercise cannot be validated while prescribed sets remain unchecked.
+- The explicit pain flow can exit an exercise without forcing the remaining sets.
+- A session is complete only when every active exercise has a saved record.
+- Session progression is A → B → C → next week.
+- Rest timing is based on an absolute end timestamp so backgrounding the browser does not simply pause the clock.
+- Measurement entries reject an entirely empty submission and same-day measurements replace the previous same-day entry.
+- Import data is normalized and user-entered text is rendered as text rather than injected HTML.
