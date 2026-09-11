@@ -89,3 +89,9 @@
   document.documentElement.classList.add('her11-ready');
   if(!q('#exercise')?.classList.contains('hidden'))guideSets();
 })();
+
+/* Load the adaptive coach after the rest-flow layer is ready. */
+(()=>{
+  if(!document.querySelector('link[data-her12-layer="v12"]')){const css=document.createElement('link');css.rel='stylesheet';css.href='./experience-v12.css';css.dataset.her12Layer='v12';document.head.appendChild(css)}
+  if(!document.querySelector('script[data-her12-layer="v12"]')){const js=document.createElement('script');js.src='./experience-v12.js';js.async=false;js.dataset.her12Layer='v12';document.body.appendChild(js)}
+})();
