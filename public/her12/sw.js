@@ -1,6 +1,6 @@
-const CACHE="her12-v9";
+const CACHE="her12-v10";
 const SHELL=[
-  "./","./index.html","./styles-v2.css","./enhancements-v3.css","./experience-v4.css","./experience-v5.css","./experience-v6.css","./program-v2.js","./runtime-v2.js","./enhancements-v3.js","./experience-v4b.js","./experience-v5.js","./experience-v6.js","./manifest.webmanifest","./icon.svg","./apple-touch-icon.png"
+  "./","./index.html","./styles-v2.css","./enhancements-v3.css","./experience-v4.css","./experience-v5.css","./experience-v6.css","./experience-v7.css","./program-v2.js","./runtime-v2.js","./enhancements-v3.js","./experience-v4b.js","./experience-v5.js","./experience-v6.js","./experience-v7.js","./manifest.webmanifest","./icon.svg","./apple-touch-icon.png"
 ];
 const MEDIA=[
   "./assets/hero.jpg","./assets/hip_thrust.jpg","./assets/rdl.jpg","./assets/bulgarian.jpg","./assets/hip_abduction.jpg",
