@@ -20,11 +20,14 @@ jobs:
           import { chromium } from 'playwright';
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?nav-geometry=1', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?nav-geometry=2', { waitUntil: 'domcontentloaded', timeout: 15000 });
           await page.locator('.v15ProfileGate').waitFor({ state: 'visible' });
           await page.locator('[data-sex="male"]').click();
           await page.locator('[data-run="3"]').click();
-          for (const day of ['0','2','4']) await page.locator(`.her4Days [data-day="${day}"]`).click();
+          for (const day of ['0','2','4']) {
+            const button = page.locator(`.her4Days [data-day="${day}"]`);
+            if (!await button.evaluate(el => el.classList.contains('active'))) await button.click();
+          }
           await page.locator('.her4Onboarding [data-step="1"] [data-next="2"]').click();
           await page.locator('.her4Step[data-step="3"]').waitFor({ state: 'visible' });
           await page.locator('#her4Create').click({ noWaitAfter: true });
@@ -38,17 +41,17 @@ jobs:
             const hr = home.getBoundingClientRect();
             const x = br.left + br.width / 2;
             const y = br.top + br.height / 2;
-            const stack = document.elementsFromPoint(x, y).map(el => ({ tag: el.tagName, id: el.id, cls: el.className, z: getComputedStyle(el).zIndex, pos: getComputedStyle(el).position, pe: getComputedStyle(el).pointerEvents }));
+            const stack = document.elementsFromPoint(x, y).map(el => ({ tag: el.tagName, id: el.id, cls: String(el.className), z: getComputedStyle(el).zIndex, pos: getComputedStyle(el).position, pe: getComputedStyle(el).pointerEvents }));
             return {
               viewport: { w: innerWidth, h: innerHeight, scrollY },
               navRect: nr.toJSON(),
               buttonRect: br.toJSON(),
               homeRect: hr.toJSON(),
-              navStyle: { z: getComputedStyle(nav).zIndex, pos: getComputedStyle(nav).position, transform: getComputedStyle(nav).transform, pe: getComputedStyle(nav).pointerEvents },
+              navStyle: { z: getComputedStyle(nav).zIndex, pos: getComputedStyle(nav).position, transform: getComputedStyle(nav).transform, pe: getComputedStyle(nav).pointerEvents, top: getComputedStyle(nav).top, bottom: getComputedStyle(nav).bottom },
               buttonStyle: { z: getComputedStyle(button).zIndex, pos: getComputedStyle(button).position, pe: getComputedStyle(button).pointerEvents },
               homeStyle: { z: getComputedStyle(home).zIndex, pos: getComputedStyle(home).position, pe: getComputedStyle(home).pointerEvents, transform: getComputedStyle(home).transform },
               stack,
-              appStyle: { transform: getComputedStyle(document.querySelector('#app')).transform, pos: getComputedStyle(document.querySelector('#app')).position, z: getComputedStyle(document.querySelector('#app')).zIndex },
+              appStyle: { transform: getComputedStyle(document.querySelector('#app')).transform, pos: getComputedStyle(document.querySelector('#app')).position, z: getComputedStyle(document.querySelector('#app')).zIndex, overflow: getComputedStyle(document.querySelector('#app')).overflow },
             };
           });
           console.log('GEOMETRY=' + JSON.stringify(data));
