@@ -33,27 +33,37 @@
 .her10-ready #setRows .setRow.v9Done .setCheck{background:rgba(255,127,164,.12);border-color:rgba(255,127,164,.24)}
 .her10-ready #validateExercise{background:linear-gradient(135deg,#ff719a,#eb6f9b 55%,#c779d9);border:0}
 
-/* Navigation feels intentional, not empty. */
 .her10-ready .bottom .nav.active{background:linear-gradient(180deg,#1d222c,#161b23);box-shadow:inset 0 0 0 1px #252d38}
 .her10-ready .bottom .nav.active span{color:#ff91ad}
 
-/* Progress gets a little depth while keeping the numbers sparse. */
 .her10-ready #tracking>.kpis .kpi{background:linear-gradient(180deg,#141a21,#10151b)}
 .her10-ready #tracking>.card{background:linear-gradient(180deg,#131920,#0f141a)}
 .her10-ready #hipChart{background:linear-gradient(180deg,rgba(255,127,164,.035),transparent);border-radius:14px}
 
-/* Onboarding is welcoming without becoming decorative. */
 .her10-ready .her4OnboardInner{background:radial-gradient(circle at 80% 0,rgba(255,127,164,.11),transparent 220px),#10151b}
 .her10-ready .her4Brand{display:inline-flex;align-items:center;gap:7px;color:#fff;opacity:1}
 .her10-ready .her4Brand::before{content:'';width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--her10-pink),var(--her10-violet));box-shadow:0 0 0 5px rgba(255,127,164,.08)}
 .her10-ready .her4Days button.active,.her10-ready .her4Goals button.active{border-color:rgba(255,127,164,.5);background:linear-gradient(180deg,rgba(255,127,164,.10),rgba(255,127,164,.035))}
 
-/* Summary gets one clear visual reward. */
 .her10-ready #summary>h1{position:relative;padding-top:58px}
 .her10-ready #summary>h1::before{content:'✓';position:absolute;top:4px;left:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ff719a,#a78bfa);color:#fff;font-size:22px;box-shadow:0 12px 30px rgba(255,113,154,.18)}
+
+/* v11 — progress follows the actual goals instead of only Hip Thrust. */
+.her11-ready #tracking>.kpis{display:none!important}
+.her11-ready #tracking>h1{margin-bottom:4px}.v11Lead{margin:0 0 14px;color:#9aa4b1;font-size:11px;line-height:1.45}
+.v11ProgressHero{position:relative;overflow:hidden;border:1px solid #292f3a;border-radius:21px;padding:16px;margin:10px 0 12px;background:linear-gradient(145deg,#171a22 0%,#11151c 58%,#17131a 100%)}
+.v11ProgressHero::after{content:'';position:absolute;width:120px;height:120px;border-radius:50%;right:-52px;top:-54px;background:radial-gradient(circle,rgba(255,111,150,.16),rgba(255,111,150,0) 70%)}
+.v11HeroTop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.v11HeroTop span{font-size:9px;color:#929ba8;text-transform:uppercase;letter-spacing:.08em;font-weight:800}.v11HeroTop strong{display:block;font-size:28px;line-height:1;margin-top:4px}.v11HeroTop b{font-size:12px;color:#ff9db6;background:rgba(255,111,150,.1);border:1px solid rgba(255,111,150,.22);padding:7px 9px;border-radius:10px}.v11ProgressHero .progress{height:6px;margin:13px 0 8px;background:#222832}.v11ProgressHero .progress span{background:linear-gradient(90deg,#ff6f96,#a97aff)}.v11HeroFoot{display:flex;justify-content:space-between;gap:10px;font-size:9px;color:#8f99a6}
+.v11SectionHead{display:flex;align-items:end;justify-content:space-between;gap:10px;margin:17px 2px 8px}.v11SectionHead strong{font-size:14px}.v11SectionHead span{font-size:9px;color:#838d9a}
+.v11GoalRail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(142px,44%);gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:1px 1px 5px;scrollbar-width:none}.v11GoalRail::-webkit-scrollbar{display:none}
+.v11GoalCard{scroll-snap-align:start;min-height:118px;border:1px solid #282f39;border-radius:17px;padding:12px;background:linear-gradient(160deg,#151a22,#10141a);display:flex;flex-direction:column;justify-content:space-between}.v11GoalCard.active{border-color:#4b3947;background:linear-gradient(160deg,#1b1820,#11151b)}.v11GoalTop{display:flex;justify-content:space-between;align-items:center;gap:8px}.v11GoalTop b{font-size:11px}.v11GoalTop span{font-size:8px;color:#818c99}.v11Metric{font-size:21px;line-height:1.05;font-weight:900;margin-top:8px}.v11Metric small{font-size:9px;color:#9ca5b1}.v11Delta{font-size:9px;color:#ff9db6;font-weight:800;margin-top:5px}.v11Empty{font-size:10px;color:#929ba8;line-height:1.35;margin-top:8px}
+.v11BodyCard{border:1px solid #272f39;border-radius:17px;padding:12px;background:#11161d;margin:8px 0}.v11BodyGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.v11BodyMetric{padding:9px 7px;border-radius:12px;background:#171d25;min-width:0}.v11BodyMetric span{display:block;font-size:8px;color:#86909d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v11BodyMetric strong{display:block;font-size:14px;margin-top:3px}.v11BodyMetric small{display:block;font-size:8px;color:#ff9db6;margin-top:2px}.v11BodyCard button{width:100%;min-height:42px;margin-top:9px;border-radius:12px;border:1px solid #303845;background:transparent;color:#dfe4eb;font-size:10px;font-weight:800}
+.v11Checkpoints{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:8px 0 13px}.v11Checkpoint{border:1px solid #272e37;border-radius:13px;padding:9px 5px;background:#10151b;text-align:center}.v11Checkpoint b{display:block;font-size:10px}.v11Checkpoint span{display:block;font-size:7.5px;color:#8993a0;margin-top:3px;line-height:1.25}.v11Checkpoint.done{border-color:#3c3b4a;background:#161722}.v11Checkpoint.done b{color:#ff9db6}.v11Checkpoint.now{border-color:#ff7fa1;box-shadow:0 0 0 1px rgba(255,127,161,.12) inset}
+.her11-ready #tracking>#v5Measures{display:none!important}.her11-ready #tracking>article.card:first-of-type{display:none!important}.her11-ready #tracking #historyList{margin-top:6px}.her11-ready #tracking .historyItem{padding:9px 2px;border-bottom:1px solid #202731}.her11-ready #tracking .historyItem b{font-size:10px}.her11-ready #tracking .historyItem p{font-size:8.5px}
 
 @media(max-width:380px){
   .v10SessionVisual{height:116px;margin-left:-15px;margin-right:-15px}
   .v10WeekItem{grid-template-columns:29px 1fr;gap:5px;padding:6px}.v10WeekItem img{width:29px;height:36px}.v10WeekItem b{font-size:9px}.v10WeekItem small{font-size:7.5px}
   .her10-ready #exerciseList .exerciseRow{grid-template-columns:44px minmax(0,1fr) auto!important}.her10-ready #exerciseList .exerciseRow img{width:44px;height:44px}
+  .v11GoalRail{grid-auto-columns:minmax(135px,48%)}.v11BodyMetric{padding:8px 5px}.v11BodyMetric strong{font-size:13px}.v11Checkpoint{padding:8px 3px}.v11Checkpoint span{font-size:7px}
 }
