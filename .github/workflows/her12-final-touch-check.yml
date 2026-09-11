@@ -14,11 +14,11 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Inspect jsDelivr HTML delivery
+      - name: Inspect raw.githack HTML delivery
         run: |
           cat > static-host.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const url='https://cdn.jsdelivr.net/gh/n9yzysn687-cell/immoboost-portal@697d1adab2b554190eecf84728e6ef5654b08e97/public/her12/index.html';
+          const url='https://raw.githack.com/n9yzysn687-cell/immoboost-portal/697d1adab2b554190eecf84728e6ef5654b08e97/public/her12/index.html';
           const browser=await chromium.launch({headless:true});
           const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
           const page=await context.newPage();
