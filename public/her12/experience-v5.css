@@ -1,0 +1,78 @@
+/* HER12 v5 — coach-first, low-friction mobile UX inspired by best-in-class training apps. */
+:root{--v5-accent:#ff6f96;--v5-accent2:#ff9b79;--v5-green:#4bd286;--v5-surface:#141821;--v5-soft:#1d222c;--v5-line:#2c3440}
+
+/* Today-first information hierarchy */
+.her5-ready #home .topHeader h1{font-size:34px;letter-spacing:-.035em}
+.her5-ready #home .topHeader .muted{font-size:12px}
+.her5-ready #home .progressCard,
+.her5-ready #home .hero,
+.her5-ready #home .kpis,
+.her5-ready #home .privacyNote{display:none!important}
+.her5-ready #her4NextCard{margin-top:18px;padding:18px;border-radius:24px;background:linear-gradient(160deg,#19131a 0%,#171b22 62%,#10141a 100%);border:1px solid #3d2932;box-shadow:0 18px 44px rgba(0,0,0,.22)}
+.her5-ready #her4NextCard h2{font-size:25px;line-height:1.08;margin:6px 0 5px;letter-spacing:-.028em}
+.her5-ready #her4NextCard p{color:#aeb3bd;font-size:13px;margin-bottom:12px}
+.her5-ready #her4NextCard .progress{height:5px;margin:10px 0 14px}
+.her5-ready #her4NextCard>.cta{min-height:54px;font-size:15px;border-radius:16px}
+.v5AdaptRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}
+.v5AdaptMeta{display:flex;flex-direction:column;gap:2px;min-width:0}.v5AdaptMeta b{font-size:12px}.v5AdaptMeta span{font-size:11px;color:#979eaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v5AdaptBtn{border:1px solid #454d5a;background:#202630;color:#fff;border-radius:12px;padding:9px 12px;font-size:12px;font-weight:800;white-space:nowrap;min-height:40px}
+.her5-ready #her4Week{margin-top:10px;gap:7px}
+.her5-ready .her4Day{min-height:68px;border-radius:16px}.her5-ready .her4Day b{font-size:13px}.her5-ready .her4Day span{font-size:10px;line-height:1.2}
+
+/* Four destinations, like a true mobile app. Measurements live under Progress. */
+.her5-ready .bottom{grid-template-columns:repeat(4,1fr)}
+.her5-ready .bottom .nav[data-nav="body"]{display:none!important}
+.her5-ready .bottom .nav{min-height:58px}
+
+/* Program is a compact plan, not a dashboard. */
+.her5-ready #program>.eyebrow{display:none}
+.her5-ready #program>h1{font-size:30px;margin-bottom:2px}
+.her5-ready #program .readinessCard{display:none!important}
+.her5-ready #program #weekTabs{margin-top:8px}
+.her5-ready #program #sessionTabs{margin-top:8px}
+.her5-ready #program #sessionTabs button{min-width:96px}
+.v5CoachBar{margin:10px 0 2px;padding:12px 13px;border:1px solid var(--v5-line);border-radius:16px;background:var(--v5-surface);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.v5CoachBar strong{font-size:13px;display:block}.v5CoachBar span{font-size:11px;color:#9da5b2;display:block;margin-top:2px}.v5CoachBar button{border:0;background:#272e39;color:#fff;border-radius:11px;padding:9px 11px;font-weight:800;font-size:11px;min-height:38px}
+.her5-ready .her4ExerciseRow{margin-top:7px;padding:7px;border-radius:15px;min-height:82px}
+.her5-ready .her4ExerciseRow img{width:68px;height:68px}
+.her5-ready .her4ExerciseRow b{font-size:14px}.her5-ready .her4ExerciseRow small{font-size:11px}
+
+/* Exercise logging: show only the next decision. */
+.her5-ready #exercise .coachGrid,
+.her5-ready #exercise .coachGrid + .card,
+.her5-ready #exercise .previousCard{display:none!important}
+.her5-ready #exercise .exerciseIntro{margin-bottom:8px}
+.her5-ready #exercise .exerciseIntro h1{font-size:30px;line-height:1.02}
+.her5-ready #exercise .media{height:250px;border-radius:0 0 22px 22px;overflow:hidden}
+.her5-ready #her4Technique{margin:8px 0 4px;min-height:42px}
+.v5ExerciseProgress{margin:10px 0 6px}.v5ExerciseProgress .v5ProgressTop{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#9da5b2;margin-bottom:6px}.v5ExerciseProgress .progress{height:5px}
+.her5-ready #smartTargetCard{padding:11px 12px;margin-top:9px;border-radius:14px;background:#171b22;border:1px solid #2b323d}
+.her5-ready #smartTargetCard .smartTitle{font-size:12px;margin-bottom:3px}.her5-ready #smartTargetCard .smartText{font-size:12px;line-height:1.35}.her5-ready #smartTargetCard .smartMeta{display:none}
+.her5-ready #exercise .loggingCard{margin-top:9px;border-radius:20px;padding:14px}
+.her5-ready .loadControl{grid-template-columns:52px 1fr 52px}
+.her5-ready .loadField{min-height:58px;display:flex;flex-direction:column;justify-content:center}.her5-ready .loadField input{font-size:28px}
+.her5-ready .setRow{grid-template-columns:58px 48px 1fr 48px 48px;gap:6px;margin-top:8px}.her5-ready .setCheck{height:48px;font-size:20px}.her5-ready .roundBtn{height:48px}
+.her5-ready .effortBlock strong,.her5-ready .formBlock strong{font-size:12px}.her5-ready .quick button{min-height:48px}
+.her5-ready #exerciseNote{min-height:52px;max-height:80px}
+.her5-ready #decision{font-size:12px;line-height:1.4}
+.her5-ready #validateExercise{min-height:54px;font-size:15px;border-radius:16px}
+
+/* Freeletics-like Adapt Today sheet: one decision at a time. */
+.v5Sheet{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.62);backdrop-filter:blur(7px);display:flex;align-items:flex-end;justify-content:center;padding:14px}
+.v5SheetPanel{width:min(100%,440px);background:#11151c;border:1px solid #303844;border-radius:24px;padding:8px 14px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -22px 70px rgba(0,0,0,.38)}
+.v5Grabber{width:42px;height:5px;border-radius:99px;background:#3a414d;margin:3px auto 14px}.v5SheetPanel h2{font-size:24px;margin:0}.v5SheetPanel>p{color:#a2a9b4;font-size:12px;margin:5px 0 12px}
+.v5Mode{width:100%;display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;border:1px solid #2c3440;background:#191e26;color:#fff;border-radius:16px;padding:11px;margin-top:8px;text-align:left}.v5Mode.active{border-color:#8d4057;background:#291820}.v5ModeIcon{width:42px;height:42px;border-radius:13px;background:#252b35;display:grid;place-items:center;font-size:19px}.v5Mode b{display:block;font-size:13px}.v5Mode small{display:block;color:#9ea5b0;font-size:11px;margin-top:2px}.v5Mode>span:last-child{font-size:11px;color:#ff9db6;font-weight:800}
+.v5SheetClose{width:100%;min-height:46px;margin-top:12px;border:0;border-radius:13px;background:#272d36;color:#fff;font-weight:800}
+.v5Locked{padding:10px;border-radius:12px;background:#2b2216;color:#ffd18c;border:1px solid #5e4624;font-size:11px;margin-top:10px}
+
+/* End-of-session feedback is quick and optional. */
+.v5Feedback{margin-top:10px;padding:13px;background:#151922;border:1px solid #2b323c;border-radius:16px}.v5Feedback b{font-size:13px}.v5Feedback p{font-size:11px;color:#9da5b1;margin:3px 0 9px}.v5FeedbackBtns{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.v5FeedbackBtns button{min-height:44px;border:1px solid #313945;background:#202630;color:#fff;border-radius:11px;font-size:11px;font-weight:800}.v5FeedbackBtns button.active{border-color:#ff6f96;background:#2c1820;color:#ffafc3}
+
+/* Progress becomes the home for measurements too. */
+.v5MeasureShortcut{margin-top:10px;width:100%;border:1px solid #303844;background:#1a1f27;color:#fff;border-radius:14px;padding:11px 12px;display:flex;align-items:center;justify-content:space-between;text-align:left}.v5MeasureShortcut b{font-size:12px;display:block}.v5MeasureShortcut span{font-size:10px;color:#9da5b1}
+
+/* Touch speed and reduced visual noise. */
+.her5-ready button,.her5-ready [role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.her5-ready button:active{transform:scale(.985)}
+.her5-ready .card{box-shadow:none}
+@media(prefers-reduced-motion:reduce){.her5-ready *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
