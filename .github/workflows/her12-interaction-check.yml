@@ -1,11 +1,12 @@
-name: HER12 Real Interaction Check
+name: HER12 Profile + Mobile Acceptance
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  iphone:
+  validate:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - name: Install Playwright
@@ -13,92 +14,74 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Exercise fixed HER12 like a first-time iPhone user
+      - name: Validate fresh, returning, male and female flows
         run: |
-          cat > her12-check.mjs <<'EOF'
+          cat > her12-profile-acceptance.mjs <<'EOF'
           import { chromium } from 'playwright';
-          const browser = await chromium.launch({headless:true});
-          const page = await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          const errors=[]; const logs=[];
-          page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
-          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?e2e=mobile',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.waitForSelector('.her4Onboarding,#home .topHeader',{state:'visible',timeout:25000});
-          logs.push('TITLE='+await page.title());
-          logs.push('BOOT_LOADER_PRESENT='+await page.locator('#bootStatus').count());
-
-          const onboard=page.locator('.her4Onboarding');
-          logs.push('ONBOARD_VISIBLE='+await onboard.isVisible().catch(()=>false));
-          if(await onboard.isVisible().catch(()=>false)){
-            logs.push('DAY_BUTTONS='+await page.locator('.her4Days [data-day]').count());
-            logs.push('DEFAULT_ACTIVE_DAYS='+await page.locator('.her4Days [data-day].active').count());
-            const cont=page.locator('.her4Onboarding [data-next="2"]');
-            logs.push('CONT_DISABLED='+await cont.isDisabled());
-            await cont.click({timeout:5000});
-            await page.locator('.her4Step[data-step="3"]').waitFor({state:'visible',timeout:5000});
-            logs.push('STEP3_VISIBLE=true');
-            await page.locator('#her4Create').click({timeout:5000});
-            await page.waitForSelector('#home .topHeader',{state:'visible',timeout:15000});
-            await page.waitForTimeout(400);
-            logs.push('ONBOARD_AFTER_CREATE='+await page.locator('.her4Onboarding').isVisible().catch(()=>false));
+          const URL='https://her12-1plk7r.v2.appdeploy.ai/?acceptance=profile-v16';
+          const browser=await chromium.launch({headless:true});
+          const mobile={viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true};
+          const out=s=>console.log('[HER12] '+s);
+          const capture=(page,errors)=>{
+            page.on('pageerror',e=>errors.push('PAGEERROR '+(e.stack||e.message)));
+            page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
+            page.on('requestfailed',r=>{if(r.url().includes('her12-1plk7r.v2.appdeploy.ai'))errors.push('REQUEST '+r.url()+' '+(r.failure()?.errorText||''))});
+          };
+          async function daysAndCreate(page){
+            const root=page.locator('.her4Onboarding');
+            await root.waitFor({state:'visible',timeout:15000});
+            for(const day of ['0','2','4']){
+              const b=root.locator(`.her4Days [data-day="${day}"]`);
+              if(!await b.evaluate(el=>el.classList.contains('active')))await b.click();
+            }
+            await root.locator('[data-step="1"] [data-next="2"]').click();
+            await root.locator('.her4Step[data-step="3"]').waitFor({state:'visible'});
+            await root.locator('#her4Create').click({noWaitAfter:true});
+            await root.waitFor({state:'detached',timeout:12000});
+            await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:12000});
           }
-
-          const navMap=[['Séances','program'],['Suivi','tracking'],['Mesures','body'],['Guide','more'],['Accueil','home']];
-          for(const [name,id] of navMap){
-            const b=page.getByRole('button',{name:new RegExp(name,'i')}).last();
-            logs.push(`NAV_${name}_VISIBLE=`+await b.isVisible().catch(()=>false));
-            await b.click({timeout:5000});
-            await page.waitForTimeout(150);
-            const active=await page.locator('.screen:not(.hidden)').getAttribute('id');
-            logs.push(`NAV_${name}_ACTIVE=`+active);
-            if(active!==id)throw new Error(`nav ${name} failed: ${active}`);
+          async function freshMaleAndReturning(){
+            const context=await browser.newContext(mobile);const page=await context.newPage();page.setDefaultTimeout(9000);const errors=[];capture(page,errors);
+            await page.goto(URL+'&case=fresh-male',{waitUntil:'domcontentloaded',timeout:15000});
+            const gate=page.locator('.v15ProfileGate');await gate.waitFor({state:'visible',timeout:15000});
+            if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('Femme/Homme choice is not visible on first run');
+            out('fresh gate shows Femme + Homme');
+            await page.locator('[data-sex="male"]').click();await page.locator('[data-run="3"]').click();await daysAndCreate(page);
+            const chip=await page.locator('#v15ProfileChip').innerText();if(!chip.includes('Homme')||!chip.includes('3×'))throw new Error('male chip wrong: '+chip);
+            const size=await page.evaluate(()=>({w:innerWidth,h:innerHeight}));if(size.w!==390||size.h!==844)throw new Error('mobile viewport expanded: '+JSON.stringify(size));
+            out('male profile created; viewport 390x844');
+            await page.locator('.bottom .nav[data-nav="program"]').click();
+            const titles=[];for(let i=0;i<3;i++){await page.locator('#sessionTabs button').nth(i).click();titles.push(await page.locator('#sessionTitle').innerText())}
+            if(!titles[0].includes('Upper A')||!titles[1].includes('Running Strength')||!titles[2].includes('Upper B'))throw new Error('male split wrong: '+titles.join(' | '));
+            out('male split OK');
+            await page.locator('#sessionTabs button').first().click();await page.locator('#exerciseList .exerciseRow').first().click();
+            if(await page.locator('#v6Warmup').isVisible().catch(()=>false))await page.locator('#v6Warmup [data-warm="skip"]').click();
+            await page.locator('#setRows .setCheck').first().click();await page.waitForTimeout(150);
+            if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer did not start');
+            await page.locator('#timerSkip').click();out('exercise touch + timer OK');
+            for(const nav of ['tracking','body','more','home','program']){await page.locator(`.bottom .nav[data-nav="${nav}"]`).click();if(await page.locator('#'+nav).count()&&await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('nav failed '+nav)}
+            out('bottom navigation OK');
+            await page.reload({waitUntil:'domcontentloaded',timeout:15000});await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
+            if(await page.locator('.v15ProfileGate').isVisible().catch(()=>false))throw new Error('returning user was incorrectly forced through gate');
+            await page.locator('#v14HomeSettings').click();await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
+            page.once('dialog',d=>d.accept());await page.locator('#v15ChangeProfile').click({noWaitAfter:true});
+            await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
+            if(!await page.locator('[data-sex="female"]').isVisible()||!await page.locator('[data-sex="male"]').isVisible())throw new Error('profile chooser missing after change profile');
+            out('returning user can return to Femme/Homme choice');
+            const resources=await page.evaluate(()=>performance.getEntriesByType('resource').map(e=>e.name));
+            if(!resources.some(u=>u.includes('her12-v15.js?v=16')))throw new Error('current V15 asset version was not loaded');
+            out('current V15 asset loaded');
+            if(errors.length)throw new Error(errors.join(' | '));await context.close();
           }
-
-          const start=page.locator('#her4NextCard .cta').first();
-          logs.push('START_VISIBLE='+await start.isVisible().catch(()=>false));
-          await start.click({timeout:5000});
-          await page.waitForTimeout(200);
-          logs.push('AFTER_START='+await page.locator('.screen:not(.hidden)').getAttribute('id'));
-          const ex=page.locator('#exerciseList .exerciseRow').first();
-          logs.push('EX_VISIBLE='+await ex.isVisible().catch(()=>false));
-          await ex.click({timeout:5000});
-          await page.waitForTimeout(200);
-          logs.push('AFTER_EX='+await page.locator('.screen:not(.hidden)').getAttribute('id'));
-
-          const check=page.locator('#setRows .setCheck').first();
-          logs.push('SET_CHECK_VISIBLE='+await check.isVisible().catch(()=>false));
-          await check.click({timeout:5000});
-          await page.waitForTimeout(200);
-          const timerVisible=!(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')));
-          logs.push('TIMER_VISIBLE='+timerVisible);
-          logs.push('TIMER_TEXT='+await page.locator('#timerText').innerText());
-          if(!timerVisible)throw new Error('rest timer did not start');
-          await page.locator('#timerSkip').click({timeout:5000});
-
-          await page.getByRole('button',{name:/Séances/i}).last().click({timeout:5000});
-          await page.waitForTimeout(150);
-          const change=page.getByRole('button',{name:/Changer mes jours/i}).first();
-          logs.push('CHANGE_DAYS_VISIBLE='+await change.isVisible().catch(()=>false));
-          await change.click({timeout:5000});
-          await page.locator('.her4Onboarding').waitFor({state:'visible',timeout:5000});
-          logs.push('RECONFIG_VISIBLE=true');
-          logs.push('RECONFIG_ACTIVE_DAYS='+await page.locator('.her4Days [data-day].active').count());
-          const close=page.getByRole('button',{name:'Fermer'});
-          if(await close.isVisible().catch(()=>false))await close.click();
-
-          await page.getByRole('button',{name:/Guide/i}).last().click({timeout:5000});
-          await page.waitForTimeout(150);
-          const reset=page.getByRole('button',{name:/Recommencer HER12 à zéro/i});
-          logs.push('RESET_VISIBLE='+await reset.isVisible().catch(()=>false));
-          page.once('dialog',dialog=>dialog.accept());
-          await reset.click({timeout:5000});
-          await page.waitForSelector('.her4Onboarding',{state:'visible',timeout:15000});
-          logs.push('RESET_RETURNED_TO_DAYS=true');
-          logs.push('RESET_ACTIVE_DAYS='+await page.locator('.her4Days [data-day].active').count());
-
-          console.log(logs.join('\n'));
-          console.log('ERRORS='+JSON.stringify(errors));
-          if(errors.length)process.exitCode=2;
-          await browser.close();
+          async function freshFemale(){
+            const context=await browser.newContext(mobile);const page=await context.newPage();page.setDefaultTimeout(9000);const errors=[];capture(page,errors);
+            await page.goto(URL+'&case=fresh-female',{waitUntil:'domcontentloaded',timeout:15000});await page.locator('.v15ProfileGate').waitFor({state:'visible',timeout:15000});
+            await page.locator('[data-sex="female"]').click();await daysAndCreate(page);
+            const chip=await page.locator('#v15ProfileChip').innerText();if(!chip.includes('Femme'))throw new Error('female chip wrong: '+chip);
+            await page.locator('.bottom .nav[data-nav="program"]').click();const titles=[];for(let i=0;i<3;i++){await page.locator('#sessionTabs button').nth(i).click();titles.push(await page.locator('#sessionTitle').innerText())}
+            if(titles.some(t=>/Upper A|Running Strength|Upper B/.test(t)))throw new Error('male plan leaked into female profile: '+titles.join(' | '));
+            out('female program preserved');if(errors.length)throw new Error(errors.join(' | '));await context.close();
+          }
+          await freshMaleAndReturning();await freshFemale();await browser.close();out('HER12_PROFILE_ACCEPTANCE_OK');
           EOF
-          node her12-check.mjs
+          node her12-profile-acceptance.mjs
