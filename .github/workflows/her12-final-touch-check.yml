@@ -1,20 +1,25 @@
-name: HER12 Vercel CI Diagnostic
+name: HER12 Vercel Preview Resolver
 
 on:
   push:
     branches: [her12-live-check]
 
 jobs:
-  diagnose:
+  resolve:
     timeout-minutes: 2
     runs-on: ubuntu-latest
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
-      - name: Check Vercel CI credentials without exposing values
+      - name: Probe Vercel preview aliases
         run: |
-          if [ -n "$VERCEL_TOKEN" ]; then echo "VERCEL_TOKEN_PRESENT=yes"; else echo "VERCEL_TOKEN_PRESENT=no"; fi
-          if [ -n "$VERCEL_ORG_ID" ]; then echo "VERCEL_ORG_ID_PRESENT=yes"; else echo "VERCEL_ORG_ID_PRESENT=no"; fi
-          if [ -n "$VERCEL_PROJECT_ID" ]; then echo "VERCEL_PROJECT_ID_PRESENT=yes"; else echo "VERCEL_PROJECT_ID_PRESENT=no"; fi
+          urls=(
+            "https://immoboost-portal-git-her12-v15-release-n9yzysn687-cells-projects.vercel.app/her12/"
+            "https://immoboost-portal-git-her12-v15-release.vercel.app/her12/"
+            "https://herfit12-git-her12-v15-release-n9yzysn687-cells-projects.vercel.app/her12/"
+          )
+          for url in "${urls[@]}"; do
+            echo "URL=$url"
+            code=$(curl -L -sS -o /tmp/her12-body -w '%{http_code}' --max-time 15 "$url" || true)
+            type=$(curl -L -sSI --max-time 15 "$url" 2>/dev/null | tr -d '\r' | awk 'tolower($1)=="content-type:"{print $2; exit}')
+            echo "STATUS=$code CONTENT_TYPE=${type:-unknown}"
+            head -c 180 /tmp/her12-body | tr '\n' ' '; echo
+          done
