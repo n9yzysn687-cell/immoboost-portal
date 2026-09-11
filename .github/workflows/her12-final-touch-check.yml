@@ -1,4 +1,4 @@
-name: HER12 V15 Boot Diagnostic
+name: HER12 V15 Crash Stack
 
 on:
   push:
@@ -14,34 +14,17 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save playwright@1.55.0 >/dev/null 2>&1
           npx playwright install chromium >/dev/null 2>&1
-      - name: Diagnose browser boot
+      - name: Capture crash stack
         run: |
-          cat > her12-diagnose.mjs <<'EOF'
+          cat > her12-stack.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser=await chromium.launch({headless:true});
-          const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true});
-          const errors=[]; const failed=[];
-          page.on('pageerror',e=>errors.push('PAGEERROR '+e.message));
-          page.on('console',m=>{if(m.type()==='error')errors.push('CONSOLE '+m.text())});
-          page.on('requestfailed',r=>failed.push(r.url()+' :: '+(r.failure()?.errorText||'')));
-          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?boot-diagnostic=1',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.waitForTimeout(5000);
-          const snapshot=await page.evaluate(()=>({
-            title:document.title,
-            htmlClass:document.documentElement.className,
-            bootText:document.querySelector('#bootStatus')?.textContent||null,
-            gate:!!document.querySelector('.v15ProfileGate'),
-            onboarding:!!document.querySelector('.her4Onboarding'),
-            home:!!document.querySelector('#home'),
-            programType:typeof window.PROGRAM,
-            stateType:typeof window.state,
-            v15Script:!!document.querySelector('script[data-her12-bundle="v15"]'),
-            bodyText:(document.body?.innerText||'').slice(0,1200),
-          }));
-          console.log('SNAPSHOT='+JSON.stringify(snapshot));
-          console.log('ERRORS='+JSON.stringify(errors));
-          console.log('FAILED='+JSON.stringify(failed));
-          console.log('HTML='+((await page.locator('body').innerHTML()).slice(0,2500)).replace(/\n/g,' '));
+          const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+          page.on('pageerror',e=>console.log('PAGEERROR_STACK='+(e.stack||e.message)));
+          page.on('console',m=>{if(m.type()==='error')console.log('CONSOLE_ERROR='+m.text())});
+          await page.goto('https://her12-1plk7r.v2.appdeploy.ai/?stack=1',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.waitForTimeout(4000);
+          console.log('GATE='+await page.locator('.v15ProfileGate').count());
           await browser.close();
           EOF
-          node her12-diagnose.mjs
+          node her12-stack.mjs
