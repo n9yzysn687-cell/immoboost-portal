@@ -1,0 +1,12 @@
+/* HER12 v13 coach: the app prescribes, the user only records reality. */
+#v7Reuse{display:none!important}
+.v12Coach{margin:12px 0 14px;padding:14px;border:1px solid rgba(255,127,164,.26);border-radius:18px;background:linear-gradient(145deg,rgba(255,127,164,.08),rgba(167,139,250,.055) 55%,rgba(255,255,255,.018));box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.v12CoachTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.v12CoachTop span{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9aa4b1}.v12CoachTop b{font-size:10px;color:#ff9db6}
+.v12CoachTarget{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.v12CoachTarget strong{font-size:24px;line-height:1;color:#fff}.v12CoachTarget span{font-size:11px;font-weight:800;color:#eef1f5;text-align:right}.v12Coach p{margin:9px 0 0;font-size:10px;line-height:1.45;color:#a9b1bc}
+.v12Hold{margin-top:10px;padding:8px 10px;border-radius:12px;background:rgba(255,190,92,.08);font-size:9px;line-height:1.4;color:#e5c58e}
+.v12Schedule{display:inline-flex;align-items:center;justify-content:center;margin:-4px 0 12px;padding:8px 11px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.035);color:#aeb6c1;font-size:10px;font-weight:800}
+.v12Schedule:before{content:'↻';margin-right:6px;color:#ff91ad}
+.v12Onboarding .v12HiddenGoalStep{display:none!important}.v12Onboarding .her4OnboardInner{position:relative}.v12CloseSetup{position:absolute;top:12px;right:12px;z-index:3;width:36px;height:36px;border:1px solid rgba(255,255,255,.12);border-radius:50%;background:rgba(255,255,255,.055);color:#fff;font-size:22px;line-height:1}
+.her12-coach-ready #exercise .setsHeader span{color:#9ba4af}.her12-coach-ready #exercise .setsHeader span:after{content:' · HER12 décide du volume'}
+.her12-coach-ready #setRows .setRow.v11SetDone{opacity:.58}.her12-coach-ready #setRows .setRow.v11SetDone .setCheck{background:rgba(87,211,151,.16);border-color:rgba(87,211,151,.42);color:#79e5b1;box-shadow:0 0 0 3px rgba(87,211,151,.045)}
+@media(max-width:380px){.v12CoachTarget{align-items:flex-start;flex-direction:column;gap:6px}.v12CoachTarget span{text-align:left}.v12CoachTarget strong{font-size:22px}}
