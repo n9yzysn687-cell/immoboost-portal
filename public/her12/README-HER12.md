@@ -7,6 +7,7 @@ Private-use, mobile-first fitness tracker for a 12-week, 3-session-per-week resi
 - Glute hypertrophy is the main training priority.
 - Arms are strengthened, especially triceps, without promising local fat loss.
 - No running. Optional cardio uses incline walking, bike or elliptical.
+- Every session starts with 5–7 minutes of easy movement and light approach sets for the first main exercise.
 - Starting loads are calibration suggestions, never prescriptions.
 - Progression is simple: first add repetitions within the target range, then add one small load increment after every prescribed set reaches the top of the range with clean technique.
 - Pain stops progression for that exercise.
@@ -22,6 +23,8 @@ The app first requests `public/her12/assets/<exercise>.jpg`. Until final dedicat
 
 The visual layer is not final until every exercise has a technically correct, dedicated adult-female demonstration asset. Final media should use a consistent adult subject and gym environment where feasible and must not use cropped tutorial sheets.
 
+A media asset is rejected if it demonstrates a materially different technique from the coaching instructions. In particular, the Lat Pulldown visual must show a front-to-upper-chest pulldown, not a behind-the-neck variation.
+
 ## QA ship gate
 
 Before treating HER12 as final:
@@ -29,8 +32,9 @@ Before treating HER12 as final:
 1. GitHub Quality Check passes.
 2. Vercel preview is Ready.
 3. Complete A, B and C end-to-end on iPhone Safari, including backgrounding and returning during the rest timer.
-4. Verify every exercise visual corresponds to the named movement.
+4. Verify every exercise visual corresponds to the named movement and the written technique.
 5. Export and re-import a backup.
 6. Confirm an incomplete session cannot be accidentally marked complete.
 7. Confirm the explicit pain-stop flow can exit an exercise without forcing remaining sets.
 8. Confirm the interface remains usable if a media request fails.
+9. Confirm the installed home-screen version receives updated program and app-shell files after a new deployment.
