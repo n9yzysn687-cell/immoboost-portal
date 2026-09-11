@@ -41,4 +41,4 @@ Open HER12 in Safari, tap **Share**, then **Add to Home Screen**. The PWA uses a
 
 The repository runs `node scripts/her12-qa.mjs` on every pull request before type-check and production build. It verifies the A/B/C program structure, unique exercise IDs, phase-set definitions, repetition and rest ranges, five-step coaching, every referenced local media file, service-worker precaching and required app-shell references.
 
-The release candidate is considered ready only when all automated checks are green and Vercel reports the deployment as Ready.
+Release candidate status: HER12 product QA ✅ • TypeScript type-check ✅ • Next.js production build ✅ • Vercel deployment Ready ✅
