@@ -1,0 +1,60 @@
+.her14-ready #her4Config {
+  display: none !important;
+}
+.v14QuickAction {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #121821;
+  color: #e8edf5;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.v14ProgramDays {
+  width: 100% !important;
+  min-height: 44px !important;
+  margin: 8px 0 12px !important;
+  border: 1px solid #5b3345 !important;
+  border-radius: 14px !important;
+  background: #21151c !important;
+  color: #ffc4d4 !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+.v14SettingsCard {
+  margin-top: 10px;
+}
+.v14SettingsCard p {
+  margin: 7px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.v14SettingsCard .secondary {
+  width: 100%;
+  margin-top: 8px;
+}
+.v14Danger {
+  border-color: #6c3037 !important;
+  background: #241316 !important;
+  color: #ffb9c1 !important;
+}
+#home .topHeader {
+  align-items: flex-start;
+  gap: 10px;
+}
+#v14HomeSettings {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+@media (max-width: 380px) {
+  .v14QuickAction {
+    font-size: 10px;
+    padding: 7px 9px;
+  }
+  .v14ProgramDays {
+    min-height: 42px !important;
+  }
+}

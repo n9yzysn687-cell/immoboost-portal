@@ -1,0 +1,204 @@
+.screen {
+  position: relative;
+  z-index: 0;
+}
+.bottom {
+  z-index: 100 !important;
+  pointer-events: auto !important;
+}
+.bottom .nav {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto !important;
+}
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+[popover='manual'] {
+  pointer-events: none !important;
+}
+.v15ProfileGate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  background: rgba(5, 7, 11, 0.96);
+  backdrop-filter: blur(18px);
+  box-sizing: border-box;
+}
+.v15GatePanel {
+  width: min(100%, 440px);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  background: linear-gradient(160deg, #121720, #0b0e14 70%);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+  box-sizing: border-box;
+}
+.v15GateBrand {
+  color: #ff91ad;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+}
+.v15GateStep {
+  margin-top: 18px;
+  color: #818b99;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.v15GatePanel h1 {
+  margin: 8px 0 8px;
+  font-size: clamp(26px, 8vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.v15GatePanel > p {
+  margin: 0 0 20px;
+  color: #aeb7c4;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.v15SexGrid,
+.v15RunGrid {
+  display: grid;
+  gap: 10px;
+}
+.v15SexGrid {
+  grid-template-columns: 1fr 1fr;
+}
+.v15SexGrid button,
+.v15RunGrid button {
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: #151b24;
+  color: #f5f7fa;
+  text-align: left;
+}
+.v15SexGrid button:active,
+.v15RunGrid button:active {
+  transform: scale(0.985);
+  background: #202938;
+}
+.v15SexIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 12px;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(255, 111, 150, 0.12);
+  color: #ff91ad;
+  font-size: 24px;
+  font-weight: 900;
+}
+.v15SexGrid b,
+.v15RunGrid b {
+  display: block;
+  font-size: 16px;
+}
+.v15SexGrid small,
+.v15RunGrid span {
+  display: block;
+  margin-top: 5px;
+  color: #98a2af;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.v15RunGrid {
+  grid-template-columns: 1fr 1fr;
+}
+.v15RunGrid button {
+  min-height: 82px;
+}
+.v15RunGrid b {
+  color: #ff9db6;
+  font-size: 22px;
+}
+.v15Back {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  border: 0;
+  background: transparent;
+  color: #aeb7c4;
+  font-weight: 800;
+}
+#home .topHeader {
+  min-width: 0;
+}
+#home .topHeader > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.v15ProfileChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 46%;
+  max-width: 46%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #aeb7c4;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.v15ProfileLine {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #c5ccd5;
+  font-size: 11px;
+  font-weight: 800;
+}
+.her15-male .v12Coach {
+  border-color: rgba(92, 162, 255, 0.24);
+  background: linear-gradient(145deg, rgba(67, 128, 255, 0.08), rgba(121, 98, 255, 0.055) 55%, rgba(255, 255, 255, 0.018));
+}
+.her15-male .v12CoachTop b,
+.her15-male .v12Schedule:before {
+  color: #85b5ff;
+}
+.her15-male .v14ProgramDays {
+  border-color: #314969 !important;
+  background: #111b29 !important;
+  color: #bad4ff !important;
+}
+.her4GuideExercise {
+  content-visibility: auto;
+  contain-intrinsic-size: 96px 340px;
+}
+@media (max-width: 390px) {
+  .v15GatePanel {
+    padding: 20px;
+    border-radius: 24px;
+  }
+  .v15SexGrid {
+    grid-template-columns: 1fr;
+  }
+  .v15SexGrid button {
+    min-height: 84px;
+  }
+  .v15SexIcon {
+    float: left;
+    margin: 0 12px 0 0;
+  }
+}

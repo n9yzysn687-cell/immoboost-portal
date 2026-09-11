@@ -67,7 +67,6 @@
     if(event.target.closest('#setRows .setCheck'))requestAnimationFrame(markCurrentSet);
   },true);
 
-  /* Shorten onboarding copy without changing choices or program generation. */
   function calmOnboarding(){
     const root=q('.her4Onboarding');if(!root)return;
     const steps=qq('.her4Step');
@@ -77,8 +76,6 @@
       if(n==='2'&&p)p.textContent='Fessiers en priorité. Active simplement les autres zones que tu veux renforcer.';
     });
   }
-  const mo=new MutationObserver(()=>calmOnboarding());
-  mo.observe(document.body,{childList:true,subtree:true});
 
   document.documentElement.classList.add('her9-ready');
   calmOnboarding();

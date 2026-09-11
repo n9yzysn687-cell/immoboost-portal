@@ -80,7 +80,7 @@ const HER12_COACH_SET_PROFILE={"hip":[3,3,4],"rdl":[2,3,3],"bulg":[2,2,2],"abd":
       const create=root.querySelector('#her4Create');if(create&&!create.dataset.v12Bound){create.dataset.v12Bound='1';create.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();const days=selectedDays(root);if(days.length!==3)return;let old=null;try{old=JSON.parse(localStorage.getItem('HER12_PROFILE_V4')||'null')}catch{}const same=old&&JSON.stringify([...(old.days||[])].sort((a,b)=>a-b))===JSON.stringify(days);if(same){root.remove();showSaveStatus('✓ Jours inchangés');return}localStorage.setItem('HER12_PROFILE_V4',JSON.stringify({version:2,days,goals:{...ALL_GOALS}}));if(old){state.drafts={};state.readiness={};state.sessionStartedAt={};state.completed=Object.fromEntries(Object.entries(state.completed||{}).filter(([key])=>Number(key.split('|')[0])<state.week));state.session='A';state.exerciseIndex=0;saveState(true)}root.remove();location.reload()},true)}
       if(localStorage.getItem('HER12_PROFILE_V4')&&!root.querySelector('.v12CloseSetup')){const close=document.createElement('button');close.type='button';close.className='v12CloseSetup';close.setAttribute('aria-label','Fermer');close.textContent='×';root.querySelector('.her4OnboardInner')?.prepend(close);close.onclick=()=>root.remove()}
     }
-    const observer=new MutationObserver(()=>{patchOnboarding(q('.her4Onboarding'));addScheduleControl()});observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});patchOnboarding(q('.her4Onboarding'));
+    const observer=new MutationObserver(mutations=>{for(const mutation of mutations){for(const node of mutation.addedNodes){if(!(node instanceof Element))continue;const root=node.matches?.('.her4Onboarding')?node:node.querySelector?.('.her4Onboarding');if(root)patchOnboarding(root)}}});observer.observe(document.body,{subtree:true,childList:true});patchOnboarding(q('.her4Onboarding'));
 
     const program0=renderProgram;renderProgram=function(){applyCoachSets();program0();addScheduleControl()};
     const exercise0=renderExercise;renderExercise=function(){applyCoachSets();exercise0();requestAnimationFrame(coachCard)};
@@ -89,5 +89,11 @@ const HER12_COACH_SET_PROFILE={"hip":[3,3,4],"rdl":[2,3,3],"bulg":[2,2,2],"abd":
     document.documentElement.classList.add('her12-coach-ready');
     addScheduleControl();if(!q('#exercise')?.classList.contains('hidden'))coachCard();
   }
-  if(document.readyState==='complete')init();else window.addEventListener('load',init,{once:true});
+  init();
+})();
+
+(()=>{
+  const css14=document.createElement('link');css14.rel='stylesheet';css14.href='./her12-v14.css?v=16';document.head.appendChild(css14);
+  const css15=document.createElement('link');css15.rel='stylesheet';css15.href='./her12-v15.css?v=16';document.head.appendChild(css15);
+  const v14=document.createElement('script');v14.src='./her12-v14.js?v=16';v14.async=false;v14.onload=()=>{const v15=document.createElement('script');v15.src='./her12-v15.js?v=16';v15.async=false;document.body.appendChild(v15)};document.body.appendChild(v14);
 })();
