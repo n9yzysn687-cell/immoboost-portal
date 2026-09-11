@@ -32,7 +32,7 @@ const HER12_COACH_SET_PROFILE={"hip":[3,3,4],"rdl":[2,3,3],"bulg":[2,2,2],"abd":
       let reps;
       if(bad||raised)reps=Array(count).fill(ex.min);
       else if(readinessValue()==='tired')reps=Array.from({length:count},(_,i)=>Math.min(ex.max,Math.max(ex.min,Number(prev.reps?.[i]??ex.min))));
-      else reps=Array.from({length:count},(_,i)=>Math.min(ex.max,Math.max(ex.min,Number(prev.reps?.[i]??ex.min)+1));
+      else reps=Array.from({length:count},(_,i)=>Math.min(ex.max,Math.max(ex.min,Number(prev.reps?.[i]??ex.min)+1)));
       let why;
       if(bad)why='La dernière exécution était trop lourde ou incomplète. HER12 sécurise la charge et reconstruit des répétitions propres.';
       else if(raised)why='La plage haute a été validée. HER12 augmente légèrement la charge et repart du bas de la plage de répétitions.';
