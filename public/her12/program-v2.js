@@ -4,7 +4,7 @@ const PROGRAM = {
     "name": "Fessiers + arrière des jambes",
     "focus": "Séance principale fessiers",
     "duration": "50–60 min",
-    "cardio": "Option : 8–12 min de marche inclinée ou vélo tranquille après la musculation.",
+    "cardio": "Avant : 5–7 min de marche facile ou vélo, puis 2 séries d’approche légères au Hip Thrust. Après : option 8–12 min de marche inclinée ou vélo tranquille.",
     "ex": [
       {"id":"hip","name":"Hip Thrust","img":"hip_thrust.jpg","target":"Fessiers","sets":[3,3,4],"min":8,"max":10,"start":30,"step":5,"unit":"kg","rest":150,"priority":"main","why":"Le mouvement principal de la semaine pour charger les fessiers et mesurer ta progression.","feel":"Fessiers. Pas le bas du dos.","steps":["Place le haut du dos contre le banc.","Mets les pieds à plat, largeur du bassin.","Descends les hanches sous contrôle.","Pousse avec les talons.","En haut, serre fort les fessiers sans cambrer."],"alt":"Glute bridge guidé"},
       {"id":"rdl","name":"Romanian Deadlift","img":"rdl.jpg","target":"Fessiers + arrière des cuisses","sets":[2,3,3],"min":8,"max":10,"start":8,"step":2,"unit":"kg / haltère","rest":120,"priority":"main","why":"Travaille les fessiers en position étirée et renforce l’arrière des cuisses.","feel":"Arrière des cuisses + fessiers.","steps":["Pieds largeur du bassin.","Genoux légèrement pliés.","Pousse les fesses vers l’arrière.","Garde les haltères près des jambes et le dos stable.","Remonte en poussant les hanches vers l’avant."],"alt":"Back extension orientée fessiers"},
@@ -16,8 +16,8 @@ const PROGRAM = {
     "day": "Mercredi",
     "name": "Dos + épaules + bras + ventre",
     "focus": "Bras plus fermes + silhouette équilibrée",
-    "duration": "45–55 min",
-    "cardio": "Option : 10–20 min de vélo, elliptique ou marche inclinée à allure facile.",
+    "duration": "50–65 min",
+    "cardio": "Avant : 5 min de marche facile ou vélo, puis 1–2 séries légères au Lat Pulldown. Après : option 10–15 min de vélo, elliptique ou marche inclinée à allure facile.",
     "ex": [
       {"id":"lat","name":"Lat Pulldown","img":"lat_pulldown.jpg","target":"Dos","sets":[2,3,3],"min":8,"max":12,"start":20,"step":5,"unit":"kg machine","rest":90,"priority":"main","why":"Renforce le dos et aide à créer une silhouette plus équilibrée.","feel":"Côtés et haut du dos.","steps":["Bloque les cuisses sous les coussins.","Prends la barre un peu plus large que les épaules.","Garde la poitrine légèrement sortie.","Tire les coudes vers le bas.","Remonte doucement sans lâcher la charge."],"alt":"Pulldown prise neutre"},
       {"id":"row","name":"Seated Row","img":"seated_row.jpg","target":"Milieu du dos","sets":[2,3,3],"min":10,"max":12,"start":20,"step":5,"unit":"kg machine","rest":90,"priority":"main","why":"Renforce le milieu du dos et complète le tirage vertical.","feel":"Milieu du dos.","steps":["Assieds-toi stable.","Garde le buste droit.","Tire la poignée vers le nombril.","Serre les omoplates sans hausser les épaules.","Reviens lentement."],"alt":"Row haltère"},
@@ -33,7 +33,7 @@ const PROGRAM = {
     "name": "Fessiers + cuisses + ventre",
     "focus": "Deuxième séance forte fessiers",
     "duration": "50–60 min",
-    "cardio": "Option : 8–12 min de vélo ou marche inclinée facile, seulement si les jambes sont encore fraîches.",
+    "cardio": "Avant : 5–7 min de marche facile ou vélo, puis 1–2 séries légères à la Leg Press. Après : option 8–12 min de vélo ou marche inclinée facile, seulement si les jambes sont encore fraîches.",
     "ex": [
       {"id":"press","name":"Leg Press","img":"leg_press.jpg","target":"Fessiers + cuisses","sets":[2,2,3],"min":10,"max":12,"start":50,"step":10,"unit":"kg machine","rest":120,"priority":"main","why":"Permet de charger les jambes avec beaucoup de stabilité.","feel":"Cuisses + fessiers.","steps":["Colle le dos au dossier.","Pose les pieds à plat sur la plateforme.","Descends aussi bas que tu peux sans décoller le bassin.","Pousse avec tout le pied.","Arrête avant de claquer les genoux."],"alt":"Hack squat guidé"},
       {"id":"hip2","name":"Hip Thrust modéré","img":"hip_thrust.jpg","target":"Fessiers","sets":[2,2,2],"min":10,"max":12,"start":25,"step":5,"unit":"kg","rest":120,"priority":"main","why":"Deuxième travail de poussée de hanches, volontairement plus léger que lundi.","feel":"Fessiers.","steps":["Reprends la même installation que lundi.","Choisis une charge plus légère.","Pousse avec les talons.","Serre les fessiers en haut.","Redescends lentement."],"alt":"Glute bridge guidé"},
