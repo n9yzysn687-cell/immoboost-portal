@@ -59,8 +59,11 @@ jobs:
             await page.locator('#setRows .setCheck').first().click();await page.waitForTimeout(150);
             if(await page.locator('#restTimer').evaluate(el=>el.classList.contains('hidden')))throw new Error('rest timer did not start');
             await page.locator('#timerSkip').click();out('exercise touch + timer OK');
+            if(!await page.locator('#backExercise').isVisible())throw new Error('workout back button missing');
+            await page.locator('#backExercise').click();
+            await page.locator('#program').waitFor({state:'visible'});
             for(const nav of ['tracking','body','more','home','program']){await page.locator(`.bottom .nav[data-nav="${nav}"]`).click();if(await page.locator('#'+nav).count()&&await page.locator('#'+nav).evaluate(el=>el.classList.contains('hidden')))throw new Error('nav failed '+nav)}
-            out('bottom navigation OK');
+            out('bottom navigation OK after leaving focused workout');
             await page.reload({waitUntil:'domcontentloaded',timeout:15000});await page.locator('#v15ProfileChip').waitFor({state:'visible',timeout:15000});
             if(await page.locator('.v15ProfileGate').isVisible().catch(()=>false))throw new Error('returning user was incorrectly forced through gate');
             await page.locator('#v14HomeSettings').click();await page.locator('#v15ChangeProfile').waitFor({state:'visible'});
