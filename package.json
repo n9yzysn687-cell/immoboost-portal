@@ -1,12 +1,15 @@
 {
   "name": "immoboost-portal",
-  "version": "0.3.0",
+  "version": "0.6.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "security:audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@types/node": "24.0.15",

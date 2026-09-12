@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ImmoBoost™",
-  description: "Le workspace intelligent des professionnels de l'immobilier.",
+  title: "ImmoBoost AI™ — Votre assistant immobilier intelligent",
+  description: "Décrivez une situation. ImmoBoost la comprend et prépare immédiatement votre kit d'action complet.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
