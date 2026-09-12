@@ -44,7 +44,7 @@ const agents: Record<AgentId, { name: string; icon: string; instructions: string
     name: "Agent Réglementation Belgique",
     icon: "⚖️",
     official: true,
-    instructions: "Répond uniquement pour la Belgique. Pour toute règle, obligation, délai, PEB, urbanisme, bail, fiscalité ou document légal, recherche des sources officielles belges actuelles. Cite les sources utilisées. Si les sources ne suffisent pas, dis exactement ce qui reste à confirmer. Ne mélange jamais les règles françaises, suisses ou luxembourgeoises.",
+    instructions: "Adapte la réponse au marché indiqué. Pour une règle locale, demande le pays/région si absent. Pour toute règle, obligation, délai, PEB, urbanisme, bail, fiscalité ou document légal, recherche des sources officielles belges actuelles. Cite les sources utilisées. Si les sources ne suffisent pas, dis exactement ce qui reste à confirmer. Ne mélange jamais les règles françaises, suisses ou luxembourgeoises.",
   },
 };
 
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
     if (!question) return NextResponse.json({ error: "Écrivez une demande." }, { status: 400 });
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "La clé OpenAI n'est pas encore configurée dans Vercel.", code: "MISSING_API_KEY" }, { status: 503 });
+      return NextResponse.json({ error: "La clé OpenAI n'est pas configurée côté serveur.", code: "MISSING_API_KEY" }, { status: 503 });
     }
 
     const agentId = routeAgent(question);
@@ -113,9 +113,10 @@ export async function POST(request: Request) {
 
     const payload: any = {
       model: process.env.OPENAI_MODEL || "gpt-5-mini",
-      instructions: `Tu es ${agent.name}, membre d'ImmoBoost Belgique. ${agent.instructions}\n\nRègles communes : réponds en français, de manière courte et immédiatement exploitable. Commence par la réponse utile, puis propose les éléments copiables. N'invente jamais de faits, prix, caractéristiques, lois ou sources. Ne demande pas de données personnelles inutiles.`,
+      instructions: `Tu es ${agent.name}, expert invisible d'ImmoBoost. ${agent.instructions}\n\nRègles communes : réponds en français, de manière courte et immédiatement exploitable. Commence par la meilleure prochaine action, puis prépare son exécution et son suivi. N'invente jamais de faits, prix, caractéristiques, lois ou sources. Ne demande pas de données personnelles inutiles.`,
       input,
       max_output_tokens: 1200,
+      store: false,
     };
 
     if (agent.official) payload.tools = [{ type: "web_search" }];
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
     const data = await response.json();
     if (!response.ok) {
       console.error("OpenAI error", data);
-      return NextResponse.json({ error: "Le moteur IA n'a pas pu répondre. Vérifiez la clé API et le crédit du compte." }, { status: 502 });
+      return NextResponse.json({ error: "Le moteur n'a pas pu répondre. Aucun Boost ne doit être débité." }, { status: 502 });
     }
 
     return NextResponse.json({

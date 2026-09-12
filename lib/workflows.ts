@@ -241,14 +241,30 @@ export const workflows: Workflow[] = [
   },
 ];
 
+function normalizeSearch(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9€]+/g, " ")
+    .trim();
+}
+
 export function searchWorkflows(query: string, category: WorkflowCategory | "all" = "all") {
-  const normalized = query.toLowerCase().trim();
-  return workflows.filter((workflow) => {
-    const categoryMatch = category === "all" || workflow.category === category;
-    if (!normalized) return categoryMatch;
-    const haystack = [workflow.title, workflow.promise, ...workflow.keywords].join(" ").toLowerCase();
-    return categoryMatch && haystack.includes(normalized);
-  });
+  const normalized = normalizeSearch(query);
+  const tokens = normalized.split(" ").filter((token) => token.length > 2);
+
+  return workflows
+    .filter((workflow) => category === "all" || workflow.category === category)
+    .map((workflow) => {
+      if (!normalized) return { workflow, score: 1 };
+      const haystack = normalizeSearch([workflow.title, workflow.promise, ...workflow.keywords].join(" "));
+      const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+      return { workflow, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(({ workflow }) => workflow);
 }
 
 export function buildExpertPrompt(workflow: Workflow, values: Record<string, string>) {
